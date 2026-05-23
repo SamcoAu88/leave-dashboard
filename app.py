@@ -758,15 +758,16 @@ with tab2:
             type_df = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
             fig = px.pie(type_df, values="count", names="leave_type",
                          color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
-            fig.update_traces(textposition="inside", textinfo="percent",
-                              insidetextfont=dict(size=11))
+            fig.update_traces(
+                textposition="inside", textinfo="percent+label",
+                insidetextfont=dict(size=10),
+                texttemplate="%{label}<br>%{percent}",
+            )
             fig.update_layout(
-                height=320,
-                margin=dict(l=10, r=10, t=30, b=30),
+                height=350,
+                margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
-                showlegend=True,
-                legend=dict(orientation="v", x=1.02, y=0.5,
-                            font=dict(size=10)),
+                showlegend=False,
             )
             st.plotly_chart(fig, use_container_width=True)
 
