@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 LEAVE_TYPES = {
     "1":   "Annual Leave",
     "2":   "Long Service Leave",
-    "3":   "Purchased Leave 48/52",
+    "3":   "Purchased Leave (48/52)",
     "4":   "Other Leave",
     "M":   "Parental Leave",
     "T":   "Training",
@@ -23,7 +23,7 @@ LEAVE_COLORS = {
     "Parental Leave":            "#CC3377",   # magenta/pink
     "Time off in Lieu":          "#AA4499",   # purple
     "Training":                  "#DDAA33",   # yellow-amber
-    "Purchased Leave 48/52":     "#BB5522",   # brown
+    "Purchased Leave (48/52)":     "#BB5522",   # brown
     "Other Leave":               "#BBBBBB",   # grey
     "Unknown":                   "#DDDDDD",   # light grey
 }
@@ -98,7 +98,7 @@ def _resolve_leave_type(val):
     # Higher numbers (5-16) = day counts entered as numbers → treat as Annual Leave days
     num_map = {
         "1":"Annual Leave", "2":"Long Service Leave",
-        "3":"Purchased Leave 48/52", "4":"Other Leave",
+        "3":"Purchased Leave (48/52)", "4":"Other Leave",
     }
     if upper in num_map:
         return num_map[upper]
