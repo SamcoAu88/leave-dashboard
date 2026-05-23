@@ -561,18 +561,20 @@ with tab1:
                     unsafe_allow_html=True)
 
         def format_name(n):
-            """If name has multiple words, show as SURNAME, Firstname."""
+            """Show as SURNAME, Firstname — last word = surname."""
             parts = str(n).strip().split()
             if len(parts) >= 2:
-                return f"{parts[-1].upper()}, {' '.join(parts[:-1])}"
+                surname = parts[-1].upper()
+                firstname = ' '.join(parts[:-1])
+                return f"{surname}, {firstname}"
             return str(n).strip().upper()
 
         display_names_raw = sorted(
             [n for n in all_names
              if n in filtered_names and str(n).strip() not in ("", "None", "nan")],
-            key=lambda n: format_name(n)
+            key=lambda n: format_name(n).upper()
         )
-        display_names = display_names_raw   # keep original for data lookup
+        display_names = display_names_raw
         display_labels = [format_name(n) for n in display_names_raw]
         display_weeks = sorted(set(filtered_weeks))[:60]
 
@@ -634,13 +636,6 @@ with tab1:
             colorscale=color_scale, showscale=False, xgap=1, ygap=1,
             zmin=0, zmax=len(LEAVE_COLORS),
         ))
-        conc_colors = ["#E24B4A" if c >= threshold else "#aaa" for c in conc_row]
-        fig_cal.add_trace(go.Bar(
-            x=week_labels_display, y=conc_row, name="Concurrent",
-            marker_color=conc_colors, yaxis="y2", opacity=0.55,
-            hovertemplate="%{customdata}<extra></extra>",
-            customdata=conc_hover, showlegend=False,
-        ))
         n_staff = len(display_labels)
         # Top labels via annotations — most reliable way with heatmap
         top_annotations = []
@@ -674,8 +669,6 @@ with tab1:
             margin=dict(l=0, r=0, t=50, b=10),
             xaxis=cal_xaxis,
             yaxis=dict(tickfont=dict(size=11)),
-            yaxis2=dict(overlaying="y", side="right", showgrid=False,
-                        showticklabels=False, range=[0, max(len(filtered_names), 1)]),
             plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
             annotations=top_annotations,
         )
@@ -809,7 +802,8 @@ with tab2:
                     xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
                     yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                                xanchor="right", x=1, font=dict(size=10)),
+                                xanchor="right", x=1, font=dict(size=10),
+                                traceorder="reversed"),
                 )
                 st.plotly_chart(fig_next, use_container_width=True)
 
