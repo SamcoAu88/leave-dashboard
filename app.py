@@ -673,7 +673,7 @@ with tab1:
 
 # ── Tab 2: Analysis ───────────────────────────────────────────────────────────
 with tab2:
-    col_l, col_r = st.columns(2)
+    col_r, col_l = st.columns(2)
 
     with col_l:
         if period_type == "Monthly":
