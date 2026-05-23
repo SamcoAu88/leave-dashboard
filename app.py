@@ -431,30 +431,29 @@ if not conc_df.empty:
         annotation_bgcolor="rgba(255,255,255,0.8)",
     )
     # Add minimum threshold lines
-    if min_motorbike > 0:
-        # How many motorbike riders on leave to breach the minimum
-        breach_line = total_motorbike - min_motorbike
-        if breach_line >= 0:
+   if min_motorbike > 0:
             fig_load.add_hline(
-                y=breach_line, line_dash="dot", line_color="#378ADD", line_width=1.5,
-                annotation_text=f"Motorbike min breach ({breach_line})",
-                annotation_position="bottom right", annotation_font_color="#378ADD",
+                y=min_motorbike, line_dash="dot", line_color="#0077BB", line_width=1.5,
+                annotation_text=f"🏍️ Min motorbike on duty ({min_motorbike})",
+                annotation_position="top right",
+                annotation_font_color="#111111",
+                annotation_bgcolor="rgba(255,255,255,0.8)",
             )
-    if min_edv > 0:
-        breach_line = total_edv - min_edv
-        if breach_line >= 0:
+        if min_edv > 0:
             fig_load.add_hline(
-                y=breach_line, line_dash="dot", line_color="#1D9E75", line_width=1.5,
-                annotation_text=f"EDV min breach ({breach_line})",
-                annotation_position="bottom right", annotation_font_color="#1D9E75",
+                y=min_edv, line_dash="dot", line_color="#EE7733", line_width=1.5,
+                annotation_text=f"🚐 Min EDV on duty ({min_edv})",
+                annotation_position="top right",
+                annotation_font_color="#111111",
+                annotation_bgcolor="rgba(255,255,255,0.8)",
             )
-    if min_relief > 0:
-        breach_line = total_relief - min_relief
-        if breach_line >= 0:
+        if min_relief > 0:
             fig_load.add_hline(
-                y=breach_line, line_dash="dot", line_color="#D4537E", line_width=1.5,
-                annotation_text=f"Relief min breach ({breach_line})",
-                annotation_position="bottom right", annotation_font_color="#D4537E",
+                y=min_relief, line_dash="dot", line_color="#CC3377", line_width=1.5,
+                annotation_text=f"👤 Min relief on duty ({min_relief})",
+                annotation_position="top right",
+                annotation_font_color="#111111",
+                annotation_bgcolor="rgba(255,255,255,0.8)",
             )
 
     # Add month divider lines for monthly view
