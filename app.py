@@ -543,7 +543,7 @@ if not conc_df.empty:
 st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs(["📆 Calendar view", "📊 Analysis", "👥 By staff", "📋 Raw data"])
+tab2, tab1, tab3, tab4 = st.tabs(["📊 Analysis", "📆 Calendar view", "👥 By staff", "📋 Raw data"])
 
 # ── Tab 1: Calendar ───────────────────────────────────────────────────────────
 with tab1:
