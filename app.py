@@ -599,25 +599,42 @@ with tab1:
             customdata=conc_hover, showlegend=False,
         ))
         n_staff = len(display_names)
-        # Bottom axis (default) + top axis (duplicate labels)
-        cal_xaxis_bottom = cal_xaxis.copy()
-        cal_xaxis_bottom["side"] = "bottom"
-
-        cal_xaxis_top = cal_xaxis.copy()
-        cal_xaxis_top["side"] = "top"
-        cal_xaxis_top["overlaying"] = "x"
-        cal_xaxis_top["matches"] = "x"
-        cal_xaxis_top["showgrid"] = False
+        # Top labels via annotations — most reliable way with heatmap
+        top_annotations = []
+        if period_type == "Monthly":
+            prev_m = None
+            for lbl, wk in zip(week_labels_display, display_weeks):
+                m = wk.strftime("%b %Y")
+                if m != prev_m:
+                    top_annotations.append(dict(
+                        x=lbl, y=1.02, xref="x", yref="paper",
+                        text=f"<b>{m}</b>",
+                        showarrow=False,
+                        font=dict(size=10, color="#555"),
+                        xanchor="left",
+                    ))
+                    prev_m = m
+        else:
+            # Weekly: show every label at top
+            for lbl in week_labels_display:
+                top_annotations.append(dict(
+                    x=lbl, y=1.02, xref="x", yref="paper",
+                    text=lbl,
+                    showarrow=False,
+                    font=dict(size=9, color="#555"),
+                    xanchor="center",
+                    textangle=-45,
+                ))
 
         fig_cal.update_layout(
             height=max(350, n_staff * 30 + 160),
-            margin=dict(l=0, r=0, t=40, b=10),
-            xaxis=cal_xaxis_bottom,
-            xaxis2=cal_xaxis_top,
+            margin=dict(l=0, r=0, t=50, b=10),
+            xaxis=cal_xaxis,
             yaxis=dict(tickfont=dict(size=11)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
             plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+            annotations=top_annotations,
         )
         st.plotly_chart(fig_cal, use_container_width=True)
     else:
