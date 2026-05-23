@@ -627,16 +627,29 @@ with tab1:
                 ))
 
         fig_cal.update_layout(
-            height=max(350, n_staff * 30 + 160),
-            margin=dict(l=0, r=0, t=50, b=10),
-            xaxis=cal_xaxis,
-            yaxis=dict(tickfont=dict(size=11)),
+            height=max(400, n_staff * 28 + 120),
+            width=max(1200, len(display_weeks) * 22),
+            margin=dict(l=0, r=0, t=50, b=60),
+            xaxis={**cal_xaxis, "tickangle": -60, "tickfont": dict(size=11)},
+            yaxis=dict(tickfont=dict(size=12)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
             plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
             annotations=top_annotations,
         )
-        st.plotly_chart(fig_cal, use_container_width=True)
+        # Wrap in scrollable div — fixed height, horizontal scroll inside
+        import plotly.io as pio
+        html_str = pio.to_html(fig_cal, full_html=False, include_plotlyjs=False,
+                               config={"displayModeBar": False, "scrollZoom": False})
+        st.components.v1.html(
+            f'''<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            <div style="overflow-x:auto; overflow-y:auto; max-height:520px;
+                        border:1px solid #e0e0e0; border-radius:8px;">
+                {html_str}
+            </div>''',
+            height=540,
+            scrolling=False,
+        )
     else:
         st.info("No leave data matches the current filters.")
 
