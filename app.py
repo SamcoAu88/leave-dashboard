@@ -693,7 +693,6 @@ with tab2:
         if has_route and not df.empty:
             with bc1:
                 st.markdown("#### Staff on leave over time — by route team")
-                st.caption("Each line = one team. Y axis = number of people on leave that week.")
 
                 # Build weekly counts per team
                 team_colors = {"1":"#0077BB","2":"#EE7733","3":"#CC3377",
@@ -730,8 +729,8 @@ with tab2:
                     ))
 
                 fig_rt.update_layout(
-                    height=320,
-                    margin=dict(l=0,r=0,t=10,b=10),
+                    height=350,
+                    margin=dict(l=0,r=0,t=30,b=10),
                     plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
                     xaxis=dict(
                         type="date",
@@ -804,8 +803,8 @@ with tab2:
                 )
                 fig_next.update_layout(
                     barmode="stack",
-                    height=320,
-                    margin=dict(l=0, r=0, t=10, b=10),
+                    height=350,
+                    margin=dict(l=0, r=0, t=30, b=10),
                     plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
                     xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
                     yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
