@@ -38,7 +38,7 @@ def load_data(filepath):
     return staff_list, df
 
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), "leave_data.xlsx")
+DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leave_data.xlsx")
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -46,7 +46,7 @@ with st.sidebar:
     st.markdown("**Brisbane Central — Stafford DC**")
     st.divider()
 
-    uploaded = st.file_uploader("Upload new Excel file", type=["xlsx"])
+    uploaded = st.file_uploader("Upload Excel file", type=["xlsx"])
     if uploaded:
         tmp_path = os.path.join(tempfile.gettempdir(), "leave_upload.xlsx")
         with open(tmp_path, "wb") as f:
@@ -57,6 +57,11 @@ with st.sidebar:
 
     st.divider()
     st.markdown("#### Filters")
+
+    # If default file doesn't exist, require upload
+    if not os.path.exists(DATA_FILE) and DATA_FILE == os.path.join(os.path.dirname(os.path.abspath(__file__)), "leave_data.xlsx"):
+        st.warning("Please upload your leave Excel file above to get started.")
+        st.stop()
 
     staff_list, df_all = load_data(DATA_FILE)
 
@@ -166,11 +171,11 @@ with st.sidebar:
 
     # ── Thresholds ──
     st.caption("🚨 Alert thresholds")
-    threshold = st.slider("Max concurrent on leave", 1, 20, 15)
+    threshold = st.slider("Max concurrent on leave", 1, 20, 3)
     st.caption("📊 Minimum staff on duty")
-    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 20)
-    min_edv       = st.slider("🚐 EDV",        0, 30, 20)
-    min_relief    = st.slider("👤 Relief",      0, 20, 10)
+    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 0)
+    min_edv       = st.slider("🚐 EDV",        0, 30, 0)
+    min_relief    = st.slider("👤 Relief",      0, 20, 0)
 
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
@@ -253,6 +258,15 @@ total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()     
 total_relief    = df_all[df_all["depot"] == "Relief"]["name"].nunique()             if not df_all.empty else 0
 
 if not conc_df.empty:
+    # X-axis labels: monthly view → "Feb 2026", weekly view → "09 Feb"
+    def make_x_label(wk):
+        if period_type == "Monthly":
+            return wk.strftime("%b %Y")
+        else:
+            return wk.strftime("%d %b")
+
+    conc_df["x_label"] = conc_df["week_start"].apply(make_x_label)
+
     # Per-week breakdown: how many motorbike/edv/relief are on leave each week
     wk_vehicle_counts = {}
     wk_relief_counts  = {}
@@ -354,7 +368,7 @@ if not conc_df.empty:
 
     fig_load = go.Figure()
     fig_load.add_trace(go.Bar(
-        x=conc_df["iso_week"],
+        x=conc_df["x_label"],
         y=conc_df["concurrent_count"],
         marker_color=bar_colors,
         hovertemplate="%{customdata}<extra></extra>",
@@ -603,8 +617,10 @@ with tab2:
                                f"<b>{int(r['staff_count'])} staff on leave</b><br>"
                                f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
                                f"≈ {int(r['days_lost'])} working days lost"), axis=1)
+                wk_df["x_label"] = wk_df["iso_week"].apply(
+                    lambda w: pd.to_datetime(week_map[w]).strftime("%d %b") if w in week_map else w)
                 fig = go.Figure(go.Bar(
-                    x=wk_df["iso_week"],
+                    x=wk_df["x_label"],
                     y=wk_df["staff_count"],
                     marker_color=wk_df["staff_count"],
                     marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
@@ -692,11 +708,13 @@ with tab2:
         bkdn_df = pd.DataFrame(wk_breakdown)
 
         fig_conc = go.Figure()
-        fig_conc.add_trace(go.Bar(x=bkdn_df["iso_week"], y=bkdn_df["Motorbike"],
+        bkdn_df["x_label"] = bkdn_df["week_start"].apply(
+            lambda w: w.strftime("%b %Y") if period_type == "Monthly" else w.strftime("%d %b"))
+        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Motorbike"],
                                    name="Motorbike", marker_color="#378ADD"))
-        fig_conc.add_trace(go.Bar(x=bkdn_df["iso_week"], y=bkdn_df["EDV"],
+        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["EDV"],
                                    name="EDV", marker_color="#1D9E75"))
-        fig_conc.add_trace(go.Bar(x=bkdn_df["iso_week"], y=bkdn_df["Other/Both"],
+        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Other/Both"],
                                    name="Other/Both", marker_color="#888780"))
 
         # threshold line
