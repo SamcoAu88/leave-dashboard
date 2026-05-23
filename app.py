@@ -685,95 +685,10 @@ with tab1:
 
 # ── Tab 2: Analysis ───────────────────────────────────────────────────────────
 with tab2:
-    col_l, col_r = st.columns(2)
-
-    with col_l:
-        if period_type == "Monthly":
-            st.markdown("#### Staff on leave by month")
-            if not df.empty:
-                month_df = (df.groupby("month")
-                              .agg(staff_count=("name", "nunique"),
-                                   leave_weeks=("name", "count"))
-                              .reset_index())
-                month_df["month"] = pd.Categorical(month_df["month"], categories=all_months, ordered=True)
-                month_df = month_df.sort_values("month")
-                month_df["full_wks"]   = df[df["leave_type"]=="Annual Leave"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
-                month_df["partial_wks"]= df[df["leave_type"]=="Annual Leave (partial week)"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
-                month_df["days_lost"]  = month_df["full_wks"]*5 + month_df["partial_wks"]*3 + (month_df["leave_weeks"]-month_df["full_wks"]-month_df["partial_wks"])*5
-                month_df["hover"] = month_df.apply(
-                    lambda r: (f"<b>{r['month']}</b><br>"
-                               f"<b>{int(r['staff_count'])} staff on leave</b><br>"
-                               f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
-                               f"≈ {int(r['days_lost'])} working days lost"), axis=1)
-                fig = go.Figure(go.Bar(
-                    x=month_df["month"],
-                    y=month_df["staff_count"],
-                    marker_color=month_df["staff_count"],
-                    marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
-                    hovertemplate="%{customdata}<extra></extra>",
-                    customdata=month_df["hover"],
-                ))
-                fig.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                  yaxis_title="Unique staff on leave",
-                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
-                                  xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.markdown("#### Staff on leave by week")
-            if not df.empty:
-                wk_df = (df.groupby("iso_week")
-                           .agg(staff_count=("name", "nunique"),
-                                leave_weeks=("name", "count"))
-                           .reset_index())
-                ordered_wks = [w for w in week_labels if w in wk_df["iso_week"].values]
-                wk_df["iso_week"] = pd.Categorical(wk_df["iso_week"], categories=ordered_wks, ordered=True)
-                wk_df = wk_df.sort_values("iso_week")
-                wk_df["full_wks"]   = df[df["leave_type"]=="Annual Leave"].groupby("iso_week")["name"].count().reindex(wk_df["iso_week"].astype(str)).fillna(0).values
-                wk_df["partial_wks"]= df[df["leave_type"]=="Annual Leave (partial week)"].groupby("iso_week")["name"].count().reindex(wk_df["iso_week"].astype(str)).fillna(0).values
-                wk_df["days_lost"]  = wk_df["full_wks"]*5 + wk_df["partial_wks"]*3 + (wk_df["leave_weeks"]-wk_df["full_wks"]-wk_df["partial_wks"])*5
-                wk_df["hover"] = wk_df.apply(
-                    lambda r: (f"<b>{r['iso_week']}</b><br>"
-                               f"<b>{int(r['staff_count'])} staff on leave</b><br>"
-                               f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
-                               f"≈ {int(r['days_lost'])} working days lost"), axis=1)
-                wk_df["x_label"] = wk_df["iso_week"].apply(
-                    lambda w: pd.to_datetime(week_map[w]).strftime("%d %b") if w in week_map else w)
-                fig = go.Figure(go.Bar(
-                    x=wk_df["x_label"],
-                    y=wk_df["staff_count"],
-                    marker_color=wk_df["staff_count"],
-                    marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
-                    hovertemplate="%{customdata}<extra></extra>",
-                    customdata=wk_df["hover"],
-                ))
-                fig.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                  yaxis_title="Unique staff on leave",
-                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
-                                  xaxis_tickangle=-60)
-                st.plotly_chart(fig, use_container_width=True)
-
-    with col_r:
-        st.markdown("#### Leave type breakdown")
-        if not df.empty:
-            type_df = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
-            fig = px.pie(type_df, values="count", names="leave_type",
-                         color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
-            fig.update_traces(
-                textposition="inside", textinfo="percent+label",
-                insidetextfont=dict(size=10),
-                texttemplate="%{label}<br>%{percent}",
-            )
-            fig.update_layout(
-                height=350,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                showlegend=False,
-            )
-            st.plotly_chart(fig, use_container_width=True)
+    st.markdown("---")
 
     # Team / vehicle breakdown (only if columns exist)
     if has_route or has_vehicle:
-        st.markdown("---")
         bc1, bc2 = st.columns(2)
         if has_route and not df.empty:
             with bc1:
@@ -951,6 +866,94 @@ with tab2:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_conc, use_container_width=True)
+
+
+    # Bottom row (bar + pie) — defined first so Python knows the vars
+    col_l, col_r = st.columns(2)
+
+    with col_l:
+        if period_type == "Monthly":
+            st.markdown("#### Staff on leave by month")
+            if not df.empty:
+                month_df = (df.groupby("month")
+                              .agg(staff_count=("name", "nunique"),
+                                   leave_weeks=("name", "count"))
+                              .reset_index())
+                month_df["month"] = pd.Categorical(month_df["month"], categories=all_months, ordered=True)
+                month_df = month_df.sort_values("month")
+                month_df["full_wks"]   = df[df["leave_type"]=="Annual Leave"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
+                month_df["partial_wks"]= df[df["leave_type"]=="Annual Leave (partial week)"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
+                month_df["days_lost"]  = month_df["full_wks"]*5 + month_df["partial_wks"]*3 + (month_df["leave_weeks"]-month_df["full_wks"]-month_df["partial_wks"])*5
+                month_df["hover"] = month_df.apply(
+                    lambda r: (f"<b>{r['month']}</b><br>"
+                               f"<b>{int(r['staff_count'])} staff on leave</b><br>"
+                               f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
+                               f"≈ {int(r['days_lost'])} working days lost"), axis=1)
+                fig = go.Figure(go.Bar(
+                    x=month_df["month"],
+                    y=month_df["staff_count"],
+                    marker_color=month_df["staff_count"],
+                    marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
+                    hovertemplate="%{customdata}<extra></extra>",
+                    customdata=month_df["hover"],
+                ))
+                fig.update_layout(margin=dict(l=0,r=0,t=10,b=10),
+                                  yaxis_title="Unique staff on leave",
+                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                                  xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.markdown("#### Staff on leave by week")
+            if not df.empty:
+                wk_df = (df.groupby("iso_week")
+                           .agg(staff_count=("name", "nunique"),
+                                leave_weeks=("name", "count"))
+                           .reset_index())
+                ordered_wks = [w for w in week_labels if w in wk_df["iso_week"].values]
+                wk_df["iso_week"] = pd.Categorical(wk_df["iso_week"], categories=ordered_wks, ordered=True)
+                wk_df = wk_df.sort_values("iso_week")
+                wk_df["full_wks"]   = df[df["leave_type"]=="Annual Leave"].groupby("iso_week")["name"].count().reindex(wk_df["iso_week"].astype(str)).fillna(0).values
+                wk_df["partial_wks"]= df[df["leave_type"]=="Annual Leave (partial week)"].groupby("iso_week")["name"].count().reindex(wk_df["iso_week"].astype(str)).fillna(0).values
+                wk_df["days_lost"]  = wk_df["full_wks"]*5 + wk_df["partial_wks"]*3 + (wk_df["leave_weeks"]-wk_df["full_wks"]-wk_df["partial_wks"])*5
+                wk_df["hover"] = wk_df.apply(
+                    lambda r: (f"<b>{r['iso_week']}</b><br>"
+                               f"<b>{int(r['staff_count'])} staff on leave</b><br>"
+                               f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
+                               f"≈ {int(r['days_lost'])} working days lost"), axis=1)
+                wk_df["x_label"] = wk_df["iso_week"].apply(
+                    lambda w: pd.to_datetime(week_map[w]).strftime("%d %b") if w in week_map else w)
+                fig = go.Figure(go.Bar(
+                    x=wk_df["x_label"],
+                    y=wk_df["staff_count"],
+                    marker_color=wk_df["staff_count"],
+                    marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
+                    hovertemplate="%{customdata}<extra></extra>",
+                    customdata=wk_df["hover"],
+                ))
+                fig.update_layout(margin=dict(l=0,r=0,t=10,b=10),
+                                  yaxis_title="Unique staff on leave",
+                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                                  xaxis_tickangle=-60)
+                st.plotly_chart(fig, use_container_width=True)
+
+    with col_r:
+        st.markdown("#### Leave type breakdown")
+        if not df.empty:
+            type_df = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
+            fig = px.pie(type_df, values="count", names="leave_type",
+                         color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
+            fig.update_traces(
+                textposition="inside", textinfo="percent+label",
+                insidetextfont=dict(size=10),
+                texttemplate="%{label}<br>%{percent}",
+            )
+            fig.update_layout(
+                height=350,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                showlegend=False,
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # ── Tab 3: By staff ───────────────────────────────────────────────────────────
 with tab3:
