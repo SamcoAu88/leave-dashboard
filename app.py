@@ -779,39 +779,41 @@ with tab2:
                     team_df = df[df["route_team"] == team].copy()
 
                     if period_type == "Monthly":
-                        # Monthly average — much smoother
-                        wk_team = (team_df.groupby("month")["name"]
+                        # Group by month_num+year for proper date sorting
+                        team_df["_ym"] = team_df["week_start"].dt.to_period("M").dt.to_timestamp()
+                        wk_team = (team_df.groupby("_ym")["name"]
                                           .nunique().reset_index()
-                                          .rename(columns={"name":"count","month":"label"}))
-                        # Sort by month order
-                        month_order = {m: i for i, m in enumerate(all_months)}
-                        wk_team["sort"] = wk_team["label"].map(month_order)
-                        wk_team = wk_team.sort_values("sort")
-                        x_vals = wk_team["label"]
-                        y_vals = wk_team["count"]
+                                          .rename(columns={"name":"count","_ym":"date"}))
+                        wk_team = wk_team.sort_values("date")
                     else:
                         wk_team = (team_df.groupby("week_start")["name"]
                                           .nunique().reset_index()
-                                          .rename(columns={"name":"count"}))
-                        wk_team = wk_team.sort_values("week_start")
-                        x_vals = wk_team["week_start"].apply(lambda w: w.strftime("%d %b"))
-                        y_vals = wk_team["count"]
+                                          .rename(columns={"name":"count","week_start":"date"}))
+                        wk_team = wk_team.sort_values("date")
 
                     fig_rt.add_trace(go.Scatter(
-                        x=x_vals, y=y_vals,
+                        x=wk_team["date"],
+                        y=wk_team["count"],
                         mode="lines+markers",
                         name=f"Team {team}",
                         line=dict(color=team_colors.get(str(team), "#888"), width=2.5),
                         marker=dict(size=6),
-                        hovertemplate=f"<b>Team {team}</b><br>%{{x}}<br>%{{y}} on leave<extra></extra>",
+                        hovertemplate=f"<b>Team {team}</b><br>%{{x|%b %Y}}<br>%{{y}} on leave<extra></extra>",
                     ))
 
                 fig_rt.update_layout(
                     height=320,
                     margin=dict(l=0,r=0,t=10,b=10),
                     plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
-                    yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
+                    xaxis=dict(
+                        type="date",
+                        tickangle=-45,
+                        tickfont=dict(size=10),
+                        tickformat="%b %Y" if period_type=="Monthly" else "%d %b",
+                        showgrid=False,
+                    ),
+                    yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0",
+                               zeroline=False, rangemode="tozero"),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02,
                                 xanchor="right", x=1),
                 )
