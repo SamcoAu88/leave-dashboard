@@ -627,29 +627,16 @@ with tab1:
                 ))
 
         fig_cal.update_layout(
-            height=max(400, n_staff * 28 + 120),
-            width=max(1200, len(display_weeks) * 22),
-            margin=dict(l=0, r=0, t=50, b=60),
-            xaxis={**cal_xaxis, "tickangle": -60, "tickfont": dict(size=11)},
-            yaxis=dict(tickfont=dict(size=12)),
+            height=max(350, n_staff * 30 + 160),
+            margin=dict(l=0, r=0, t=50, b=10),
+            xaxis=cal_xaxis,
+            yaxis=dict(tickfont=dict(size=11)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
             plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
             annotations=top_annotations,
         )
-        # Wrap in scrollable div — fixed height, horizontal scroll inside
-        import plotly.io as pio
-        html_str = pio.to_html(fig_cal, full_html=False, include_plotlyjs=False,
-                               config={"displayModeBar": False, "scrollZoom": False})
-        st.components.v1.html(
-            f'''<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-            <div style="overflow-x:auto; overflow-y:auto; max-height:520px;
-                        border:1px solid #e0e0e0; border-radius:8px;">
-                {html_str}
-            </div>''',
-            height=540,
-            scrolling=False,
-        )
+        st.plotly_chart(fig_cal, use_container_width=True)
     else:
         st.info("No leave data matches the current filters.")
 
@@ -891,19 +878,48 @@ with tab3:
 # ── Tab 4: Raw data ───────────────────────────────────────────────────────────
 with tab4:
     st.markdown("#### Full leave register")
+    st.caption("Includes APS number and designation for each staff member — mirrors the Excel register.")
     if not df.empty:
-        show_cols = ["name","depot","designation","route_team","vehicle_type",
-                     "iso_week","week_start","leave_type","month"]
-        show_cols = [c for c in show_cols if c in df.columns]
-        display_df = df[show_cols].copy()
+        # Merge APS and designation from staff_list
+        staff_meta = pd.DataFrame([
+            {"name": s["name"], "APS Number": s["aps"], "Designation": s["designation"]}
+            for s in staff_list
+        ])
+        display_df = df.merge(staff_meta, on="name", how="left")
+
+        show_cols = ["name", "APS Number", "Designation",
+                     "depot", "route_team", "vehicle_type",
+                     "iso_week", "week_start", "leave_type", "month"]
+        show_cols = [c for c in show_cols if c in display_df.columns]
+        display_df = display_df[show_cols].copy()
         display_df["week_start"] = display_df["week_start"].dt.strftime("%d %b %Y")
         display_df = display_df.rename(columns={
-            "name":"Name","depot":"Depot","designation":"Designation",
-            "route_team":"Route team","vehicle_type":"Vehicle",
-            "iso_week":"Week","week_start":"Week of",
-            "leave_type":"Leave type","month":"Month"
+            "name":         "Name",
+            "depot":        "Depot / Annexe",
+            "route_team":   "Route team",
+            "vehicle_type": "Vehicle",
+            "iso_week":     "Week",
+            "week_start":   "Week of",
+            "leave_type":   "Leave type",
+            "month":        "Month",
         })
-        st.dataframe(display_df.sort_values(["Week","Name"]), use_container_width=True, hide_index=True)
+        st.dataframe(
+            display_df.sort_values(["Week", "Name"]),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Name":         st.column_config.TextColumn(width="medium"),
+                "APS Number":   st.column_config.TextColumn(width="small"),
+                "Designation":  st.column_config.TextColumn(width="small"),
+                "Depot / Annexe": st.column_config.TextColumn(width="medium"),
+                "Route team":   st.column_config.TextColumn(width="small"),
+                "Vehicle":      st.column_config.TextColumn(width="small"),
+                "Week":         st.column_config.TextColumn(width="small"),
+                "Week of":      st.column_config.TextColumn(width="small"),
+                "Leave type":   st.column_config.TextColumn(width="medium"),
+                "Month":        st.column_config.TextColumn(width="small"),
+            }
+        )
         csv = display_df.to_csv(index=False).encode("utf-8")
         st.download_button("⬇️ Download as CSV", data=csv,
                            file_name="leave_register.csv", mime="text/csv")
