@@ -14,16 +14,18 @@ LEAVE_TYPES = {
     "F":   "Annual Leave",
 }
 
+# Colour-blind friendly palette (safe for deuteranopia/protanopia)
+# Uses blue, orange, purple, pink, brown — avoids green/red confusion
 LEAVE_COLORS = {
-    "Annual Leave":              "#378ADD",
-    "Annual Leave (partial week)": "#85B7EB",
-    "Long Service Leave":        "#1D9E75",
-    "Parental Leave":            "#D4537E",
-    "Time off in Lieu":          "#7F77DD",
-    "Training":                  "#BA7517",
-    "48/52 Purchased Leave":     "#D85A30",
-    "Other Leave":               "#888780",
-    "Unknown":                   "#B4B2A9",
+    "Annual Leave":              "#0077BB",   # strong blue
+    "Annual Leave (partial week)": "#88BBDD", # light blue
+    "Long Service Leave":        "#EE7733",   # orange
+    "Parental Leave":            "#CC3377",   # magenta/pink
+    "Time off in Lieu":          "#AA4499",   # purple
+    "Training":                  "#DDAA33",   # yellow-amber
+    "48/52 Purchased Leave":     "#BB5522",   # brown
+    "Other Leave":               "#BBBBBB",   # grey
+    "Unknown":                   "#DDDDDD",   # light grey
 }
 
 QLD_PUBLIC_HOLIDAYS_2026 = [
