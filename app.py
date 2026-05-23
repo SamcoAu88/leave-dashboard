@@ -431,7 +431,7 @@ if not conc_df.empty:
         annotation_bgcolor="rgba(255,255,255,0.8)",
     )
     # Add minimum threshold lines
-   if min_motorbike > 0:
+        if min_motorbike > 0:
             fig_load.add_hline(
                 y=min_motorbike, line_dash="dot", line_color="#0077BB", line_width=1.5,
                 annotation_text=f"🏍️ Min motorbike on duty ({min_motorbike})",
