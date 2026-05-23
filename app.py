@@ -83,10 +83,17 @@ with st.sidebar:
     st.caption("Time period")
 
     if period_type == "Monthly":
+        # Default: prior month to 13 months from now
+        from datetime import date
+        today_m = date.today().replace(day=1)
+        prior_m = (today_m.replace(day=1) - pd.DateOffset(months=1)).strftime("%b %Y")
+        end_13m = (today_m.replace(day=1) + pd.DateOffset(months=13)).strftime("%b %Y")
+        default_start = prior_m if prior_m in all_months else all_months[0]
+        default_end   = end_13m  if end_13m  in all_months else all_months[-1]
         month_filter = st.select_slider(
             "Month range",
             options=all_months,
-            value=(all_months[0], all_months[-1]),
+            value=(default_start, default_end),
             label_visibility="collapsed",
         )
         # Convert range to list
@@ -418,7 +425,9 @@ if not conc_df.empty:
     fig_load.add_hline(
         y=threshold, line_dash="dash", line_color="#E24B4A", line_width=1.5,
         annotation_text=f"Max concurrent ({threshold})",
-        annotation_position="top right", annotation_font_color="#E24B4A",
+        annotation_position="top right",
+        annotation_font_color="#111111",
+        annotation_bgcolor="rgba(255,255,255,0.8)",
     )
     # Add minimum threshold lines
     if min_motorbike > 0:
@@ -689,7 +698,7 @@ with tab2:
         bc1, bc2 = st.columns(2)
         if has_route and not df.empty:
             with bc1:
-                st.markdown("#### Staff on leave over time — by route team")
+                st.markdown("#### Staff Leave by Delivery Team")
 
                 # Build weekly counts per team
                 team_colors = {"1":"#0077BB","2":"#EE7733","3":"#CC3377",
@@ -745,7 +754,7 @@ with tab2:
 
         if not df_all.empty:
             with bc2:
-                st.markdown("#### Next 2 weeks — daily leave by team")
+                st.markdown("#### Next two weeks — Leave by Team")
                 today = datetime.today().date()
                 # Find next Monday
                 days_to_mon = (7 - today.weekday()) % 7 or 7
