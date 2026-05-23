@@ -1113,14 +1113,15 @@ with tab5:
         sdl_fresh = load_single_day_leave()
         if not sdl_fresh.empty:
             display_sdl = sdl_fresh.copy()
+            # Sort by date BEFORE formatting
             if "date" in display_sdl.columns:
+                display_sdl = display_sdl.sort_values("date", ascending=False)
                 display_sdl["date"] = pd.to_datetime(display_sdl["date"]).dt.strftime("%d %b %Y")
             display_sdl = display_sdl.rename(columns={
                 "name": "Name", "date": "Date",
                 "leave_type": "Leave type", "notes": "Notes"
             })
-            st.dataframe(display_sdl.sort_values("Date", ascending=False),
-                        use_container_width=True, hide_index=True)
+            st.dataframe(display_sdl, use_container_width=True, hide_index=True)
 
             # Next 2 weeks highlight
             st.markdown("#### Next 2 weeks")
