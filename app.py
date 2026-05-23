@@ -755,15 +755,46 @@ with tab2:
         bc1, bc2 = st.columns(2)
         if has_route and not df.empty:
             with bc1:
-                st.markdown("#### Leave by route team")
-                rt_df = df.groupby("route_team").size().reset_index(name="weeks").sort_values("weeks", ascending=False)
-                fig = px.bar(rt_df, x="route_team", y="weeks", text="weeks",
-                             color="route_team",
-                             labels={"route_team":"Route team","weeks":"Leave weeks"})
-                fig.update_traces(textposition="outside")
-                fig.update_layout(showlegend=False, margin=dict(l=0,r=0,t=10,b=10),
-                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("#### Staff on leave over time — by route team")
+                st.caption("Each line = one team. Y axis = number of people on leave that week.")
+
+                # Build weekly counts per team
+                team_colors = {"1":"#0077BB","2":"#EE7733","3":"#CC3377",
+                               "":"#BBBBBB","No team":"#BBBBBB"}
+
+                valid_teams = [t for t in df["route_team"].unique()
+                               if str(t).strip() not in ("","None","No team")]
+
+                fig_rt = go.Figure()
+                for team in sorted(valid_teams, key=str):
+                    team_df = df[df["route_team"] == team]
+                    wk_team = (team_df.groupby("week_start")["name"]
+                                      .nunique().reset_index()
+                                      .rename(columns={"name":"count"}))
+                    wk_team = wk_team.sort_values("week_start")
+                    x_labels = wk_team["week_start"].apply(
+                        lambda w: w.strftime("%b %Y") if period_type == "Monthly"
+                        else w.strftime("%d %b"))
+                    fig_rt.add_trace(go.Scatter(
+                        x=x_labels,
+                        y=wk_team["count"],
+                        mode="lines+markers",
+                        name=f"Team {team}",
+                        line=dict(color=team_colors.get(str(team), "#888"), width=2),
+                        marker=dict(size=5),
+                        hovertemplate=f"<b>Team {team}</b><br>%{{x}}<br>%{{y}} on leave<extra></extra>",
+                    ))
+
+                fig_rt.update_layout(
+                    height=320,
+                    margin=dict(l=0,r=0,t=10,b=10),
+                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                    xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
+                    yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="right", x=1),
+                )
+                st.plotly_chart(fig_rt, use_container_width=True)
 
         if has_vehicle and not df.empty:
             with bc2:
