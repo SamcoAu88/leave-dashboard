@@ -948,6 +948,11 @@ with tab3:
                     on="week_start", how="left"
                 ).fillna(0)
                 color = LEAVE_COLORS.get(lt, "#888")
+                # Convert hex to rgba for transparent fill
+                r = int(color[1:3], 16)
+                g = int(color[3:5], 16)
+                b = int(color[5:7], 16)
+                fill_color = f"rgba({r},{g},{b},0.15)"
                 fig_tl.add_trace(go.Scatter(
                     x=merged["week_start"],
                     y=merged["on_leave"],
@@ -956,7 +961,7 @@ with tab3:
                     line=dict(color=color, width=2, shape="hv"),
                     marker=dict(size=6, color=color),
                     fill="tozeroy",
-                    fillcolor=color.replace(")", ",0.15)").replace("rgb","rgba") if "rgb" in color else color + "26",
+                    fillcolor=fill_color,
                     hovertemplate=f"<b>{lt}</b><br>%{{x|%d %b %Y}}<br>On leave<extra></extra>",
                 ))
 
