@@ -554,20 +554,24 @@ with tab1:
             z_vals.append(row_z)
             hover_text.append(row_h)
 
-        # X-axis: monthly → "Feb 2026" per month group, weekly → "09 Feb" per week
+        # X-axis: always use unique date per week so Plotly doesn't merge columns
+        # Monthly view → show "Feb 2026" only at month boundary via tickvals/ticktext
+        week_labels_display = [wk.strftime("%d %b") for wk in display_weeks]
+
         if period_type == "Monthly":
-            # Show month name only when it changes, blank otherwise
-            week_labels_display = []
+            # Build custom tick positions: only show label at first week of each month
+            tickvals, ticktext = [], []
             prev_month = None
-            for wk in display_weeks:
+            for wk_label, wk in zip(week_labels_display, display_weeks):
                 m = wk.strftime("%b %Y")
                 if m != prev_month:
-                    week_labels_display.append(m)
+                    tickvals.append(wk_label)
+                    ticktext.append(m)
                     prev_month = m
-                else:
-                    week_labels_display.append("")
+            cal_xaxis = dict(tickangle=-45, tickfont=dict(size=10),
+                             tickvals=tickvals, ticktext=ticktext)
         else:
-            week_labels_display = [wk.strftime("%d %b") for wk in display_weeks]
+            cal_xaxis = dict(tickangle=-45, tickfont=dict(size=10))
 
         conc_row   = [conc_df[conc_df["week_start"] == wk]["concurrent_count"].sum()
                       for wk in display_weeks]
@@ -598,7 +602,7 @@ with tab1:
         fig_cal.update_layout(
             height=max(350, n_staff * 30 + 160),
             margin=dict(l=0, r=0, t=10, b=10),
-            xaxis=dict(tickangle=-45, tickfont=dict(size=10)),
+            xaxis=cal_xaxis,
             yaxis=dict(tickfont=dict(size=11)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
