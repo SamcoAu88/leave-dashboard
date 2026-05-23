@@ -166,11 +166,11 @@ with st.sidebar:
 
     # ── Thresholds ──
     st.caption("🚨 Alert thresholds")
-    threshold = st.slider("Max concurrent on leave", 1, 20, 3)
+    threshold = st.slider("Max concurrent on leave", 1, 20, 15)
     st.caption("📊 Minimum staff on duty")
-    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 0)
-    min_edv       = st.slider("🚐 EDV",        0, 30, 0)
-    min_relief    = st.slider("👤 Relief",      0, 20, 0)
+    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 20)
+    min_edv       = st.slider("🚐 EDV",        0, 30, 20)
+    min_relief    = st.slider("👤 Relief",      0, 20, 10)
 
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
