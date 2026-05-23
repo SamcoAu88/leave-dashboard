@@ -430,7 +430,31 @@ if not conc_df.empty:
         annotation_font_color="#111111",
         annotation_bgcolor="rgba(255,255,255,0.8)",
     )
-   
+    if min_motorbike > 0:
+        fig_load.add_hline(
+            y=min_motorbike, line_dash="dot", line_color="#0077BB", line_width=1.5,
+            annotation_text=f"🏍️ Min motorbike on duty ({min_motorbike})",
+            annotation_position="top right",
+            annotation_font_color="#111111",
+            annotation_bgcolor="rgba(255,255,255,0.8)",
+        )
+    if min_edv > 0:
+        fig_load.add_hline(
+            y=min_edv, line_dash="dot", line_color="#EE7733", line_width=1.5,
+            annotation_text=f"🚐 Min EDV on duty ({min_edv})",
+            annotation_position="top right",
+            annotation_font_color="#111111",
+            annotation_bgcolor="rgba(255,255,255,0.8)",
+        )
+    if min_relief > 0:
+        fig_load.add_hline(
+            y=min_relief, line_dash="dot", line_color="#CC3377", line_width=1.5,
+            annotation_text=f"👤 Min relief on duty ({min_relief})",
+            annotation_position="top right",
+            annotation_font_color="#111111",
+            annotation_bgcolor="rgba(255,255,255,0.8)",
+        )
+
     # Add month divider lines for monthly view
     shapes, annotations = [], []
     if period_type == "Monthly" and month_boundaries:
@@ -826,19 +850,17 @@ with tab2:
                             annotation_font_color="#E24B4A")
         # minimum lines
         if min_motorbike > 0:
-            fig_conc.add_hline(y=min_motorbike, line_dash="dot", line_color="#0077BB",
+            fig_conc.add_hline(y=min_motorbike, line_dash="dot", line_color="#378ADD",
                                 line_width=1.5,
-                                annotation_text=f"Min motorbike on duty ({min_motorbike})",
-                                annotation_position="top right",
-                                annotation_font_color="#111111",
-                                annotation_bgcolor="rgba(255,255,255,0.8)")
+                                annotation_text=f"Min motorbike on leave to breach ({min_motorbike})",
+                                annotation_position="bottom left",
+                                annotation_font_color="#378ADD")
         if min_edv > 0:
-            fig_conc.add_hline(y=min_edv, line_dash="dot", line_color="#EE7733",
+            fig_conc.add_hline(y=min_edv, line_dash="dot", line_color="#1D9E75",
                                 line_width=1.5,
-                                annotation_text=f"Min EDV on duty ({min_edv})",
-                                annotation_position="top right",
-                                annotation_font_color="#111111",
-                                annotation_bgcolor="rgba(255,255,255,0.8)")
+                                annotation_text=f"Min EDV on leave to breach ({min_edv})",
+                                annotation_position="bottom left",
+                                annotation_font_color="#1D9E75")
 
         fig_conc.update_layout(
             barmode="stack", height=300,
