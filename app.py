@@ -109,39 +109,69 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Depot ──
-    all_depots = sorted(df_all["depot"].unique().tolist()) if not df_all.empty else []
-    st.caption("Depot / Annexe")
-    depot_filter = [d for d in all_depots
-                    if st.checkbox(d, value=True, key=f"depot_{d}")]
+    # ── Team / Area (formerly Depot) ──
+    # Clean up depot names: remove blanks, rename Admin/Ops → Admin, remove 4am Slotters
+    def clean_depot(d):
+        if not d or str(d).strip() == "":
+            return None
+        d = str(d).strip()
+        if d == "Admin/Ops":
+            return "Admin"
+        if d == "4am Slotters":
+            return None
+        return d
+
+    # Apply cleaning to df_all for filter options
+    depot_clean_map = {d: clean_depot(d) for d in df_all["depot"].unique()}
+    all_depots = sorted(set(v for v in depot_clean_map.values() if v), key=str)
+
+    st.caption("Team / Area")
+    selected_depots = [d for d in all_depots
+                       if st.checkbox(d, value=True, key=f"depot_{d}")]
+    # Map back to original depot values
+    depot_filter = [orig for orig, cleaned in depot_clean_map.items()
+                    if cleaned in selected_depots]
 
     st.divider()
 
     # ── Route team ──
     has_route = df_all["route_team"].nunique() > 1 if not df_all.empty else False
     if has_route:
-        all_route_teams = sorted(df_all["route_team"].dropna().unique().tolist())
+        # Remove blank/None/empty route teams
+        all_route_teams = sorted([
+            t for t in df_all["route_team"].dropna().unique()
+            if str(t).strip() not in ("", "None", "No team")
+        ], key=str)
         st.caption("Route team")
-        cols_rt = st.columns(len(all_route_teams))
-        route_team_filter = []
-        for i, t in enumerate(all_route_teams):
-            label = f"T{t}" if t not in ("", "No team") else "None"
-            if cols_rt[i].checkbox(label, value=True, key=f"rt_{t}"):
-                route_team_filter.append(t)
+        if all_route_teams:
+            cols_rt = st.columns(min(len(all_route_teams), 4))
+            route_team_filter = []
+            for i, t in enumerate(all_route_teams):
+                label = f"T{t}"
+                if cols_rt[i % 4].checkbox(label, value=True, key=f"rt_{t}"):
+                    route_team_filter.append(t)
+        else:
+            route_team_filter = None
     else:
         route_team_filter = None
 
     # ── Vehicle type ──
     has_vehicle = df_all["vehicle_type"].nunique() > 1 if not df_all.empty else False
     if has_vehicle:
-        all_vehicles = sorted(df_all["vehicle_type"].dropna().unique().tolist())
+        # Rename Unknown → N/A
+        all_vehicles = sorted(set(
+            "N/A" if v == "Unknown" else v
+            for v in df_all["vehicle_type"].dropna().unique()
+        ))
         st.caption("Vehicle type")
-        veh_icons = {"Motorbike": "🏍️", "EDV": "🚐", "Both": "🔀", "Unknown": "❓"}
-        vehicle_filter = []
+        veh_icons = {"Motorbike": "🏍️", "EDV": "🚐", "Both": "🔀", "N/A": "—"}
+        vehicle_filter_display = []
         for v in all_vehicles:
             icon = veh_icons.get(v, "")
             if st.checkbox(f"{icon} {v}", value=True, key=f"veh_{v}"):
-                vehicle_filter.append(v)
+                vehicle_filter_display.append(v)
+        # Map N/A back to Unknown for filtering
+        vehicle_filter = ["Unknown" if v == "N/A" else v for v in vehicle_filter_display]
     else:
         vehicle_filter = None
 
@@ -893,6 +923,11 @@ with tab4:
         show_cols = [c for c in show_cols if c in display_df.columns]
         display_df = display_df[show_cols].copy()
         display_df["week_start"] = display_df["week_start"].dt.strftime("%d %b %Y")
+        # Rename Unknown vehicle → N/A and Admin/Ops → Admin for display
+        if "vehicle_type" in display_df.columns:
+            display_df["vehicle_type"] = display_df["vehicle_type"].replace("Unknown", "N/A")
+        if "depot" in display_df.columns:
+            display_df["depot"] = display_df["depot"].replace("Admin/Ops", "Admin")
         display_df = display_df.rename(columns={
             "name":         "Name",
             "depot":        "Depot / Annexe",
