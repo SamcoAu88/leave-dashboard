@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import os
 import tempfile
 
+from single_day_leave import load_single_day_leave, render_entry_form
 from data_parser import (
     parse_excel, build_leave_df, get_all_weeks, get_week_labels,
     concurrent_by_week, LEAVE_COLORS, QLD_PUBLIC_HOLIDAYS_2026
@@ -207,6 +208,9 @@ with st.sidebar:
     min_edv       = st.slider("🚐 EDV",        0, 30, 25)
     min_relief    = st.slider("👤 Relief",      0, 30, 15)
 
+
+# ── Load single day leave from Google Sheets ─────────────────────────────────
+sdl_df = load_single_day_leave()
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
 if df_all.empty:
@@ -543,7 +547,7 @@ if not conc_df.empty:
 st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab2, tab1, tab3, tab4 = st.tabs(["📊 Analysis", "📆 Calendar view", "👥 By staff", "📋 Raw data"])
+tab2, tab1, tab3, tab4, tab5 = st.tabs(["📊 Analysis", "📆 Calendar view", "👥 By staff", "📋 Raw data", "📝 Single Day Leave"])
 
 # ── Tab 1: Calendar ───────────────────────────────────────────────────────────
 with tab1:
@@ -1095,6 +1099,49 @@ with tab4:
                            file_name="leave_register.csv", mime="text/csv")
     else:
         st.info("No data matches current filters.")
+
+# ── Tab 5: Single Day Leave ──────────────────────────────────────────────────
+with tab5:
+    col_form, col_data = st.columns([1, 2])
+
+    with col_form:
+        all_staff_names = sorted(df_all["name"].dropna().unique().tolist())
+        render_entry_form(all_staff_names)
+
+    with col_data:
+        st.markdown("#### Single day leave register")
+        sdl_fresh = load_single_day_leave()
+        if not sdl_fresh.empty:
+            display_sdl = sdl_fresh.copy()
+            if "date" in display_sdl.columns:
+                display_sdl["date"] = pd.to_datetime(display_sdl["date"]).dt.strftime("%d %b %Y")
+            display_sdl = display_sdl.rename(columns={
+                "name": "Name", "date": "Date",
+                "leave_type": "Leave type", "notes": "Notes"
+            })
+            st.dataframe(display_sdl.sort_values("Date", ascending=False),
+                        use_container_width=True, hide_index=True)
+
+            # Next 2 weeks highlight
+            st.markdown("#### Next 2 weeks")
+            today = pd.Timestamp.today().normalize()
+            two_wks = today + pd.Timedelta(days=14)
+            sdl_soon = sdl_fresh[
+                (pd.to_datetime(sdl_fresh["date"]) >= today) &
+                (pd.to_datetime(sdl_fresh["date"]) <= two_wks)
+            ].copy()
+            if not sdl_soon.empty:
+                sdl_soon["date"] = pd.to_datetime(sdl_soon["date"]).dt.strftime("%a %d %b")
+                sdl_soon = sdl_soon.rename(columns={
+                    "name":"Name","date":"Date",
+                    "leave_type":"Leave type","notes":"Notes"
+                })
+                st.dataframe(sdl_soon.sort_values("Date"),
+                            use_container_width=True, hide_index=True)
+            else:
+                st.info("No single day leave in the next 2 weeks.")
+        else:
+            st.info("No single day leave entries yet. Use the form to add entries.")
 
 st.divider()
 st.caption("Built for Brisbane Central Stafford DC · Australia Post · Annual Leave Dashboard")
