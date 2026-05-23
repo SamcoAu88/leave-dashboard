@@ -599,10 +599,15 @@ with tab1:
             customdata=conc_hover, showlegend=False,
         ))
         n_staff = len(display_names)
+        # Add top axis mirror
+        cal_xaxis_top = cal_xaxis.copy()
+        cal_xaxis_top["side"] = "bottom"
+        cal_xaxis_top["mirror"] = "allticks"
+
         fig_cal.update_layout(
             height=max(350, n_staff * 30 + 160),
-            margin=dict(l=0, r=0, t=10, b=10),
-            xaxis=cal_xaxis,
+            margin=dict(l=0, r=0, t=40, b=10),
+            xaxis=cal_xaxis_top,
             yaxis=dict(tickfont=dict(size=11)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
