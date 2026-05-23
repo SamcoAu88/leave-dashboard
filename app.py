@@ -767,7 +767,7 @@ with tab2:
                 fig_next = go.Figure()
                 depots_in_data = sorted(df_all["depot"].dropna().unique())
 
-                for depot in sorted(depots_in_data, key=lambda x: str(x).strip()):
+                for depot in sorted(depots_in_data, key=lambda x: str(x).strip(), reverse=True):
                     if not depot or str(depot).strip() in ("", "4am Slotters"):
                         continue
                     depot_label = "Admin" if depot == "Admin/Ops" else depot
@@ -803,7 +803,7 @@ with tab2:
                     yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02,
                                 xanchor="right", x=1, font=dict(size=10),
-                                traceorder="reversed"),
+                                ),
                 )
                 st.plotly_chart(fig_next, use_container_width=True)
 
