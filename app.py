@@ -971,7 +971,8 @@ with tab3:
                 plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
                 xaxis=dict(
                     type="date",
-                    tickformat="%d %b",
+                    tickformat="%b %Y",
+                    dtick="M1",
                     tickangle=-45, tickfont=dict(size=10),
                     showgrid=True, gridcolor="#f0f0f0",
                 ),
