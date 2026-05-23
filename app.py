@@ -213,7 +213,7 @@ if df_all.empty:
     st.error("No data found. Please check the Excel file.")
     st.stop()
 
-df = df_all.copy()
+df = df_all[df_all["name"].str.strip().astype(bool)].copy()
 
 # Time filter
 if period_type == "Monthly" and month_filter:
@@ -560,7 +560,8 @@ with tab1:
                     f'<div style="background:{color};border-radius:4px;padding:4px 6px;'                    f'font-size:11px;color:white;text-align:center;margin-bottom:8px">{lt}</div>',
                     unsafe_allow_html=True)
 
-        display_names = [n for n in all_names if n in filtered_names]
+        display_names = [n for n in all_names
+                         if n in filtered_names and str(n).strip() not in ("", "None", "nan")]
         display_weeks = sorted(set(filtered_weeks))[:60]
 
         cal_data = {}
@@ -745,8 +746,16 @@ with tab2:
             type_df = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
             fig = px.pie(type_df, values="count", names="leave_type",
                          color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
-            fig.update_traces(textposition="outside", textinfo="label+percent")
-            fig.update_layout(margin=dict(l=0,r=0,t=10,b=10), paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
+            fig.update_traces(textposition="inside", textinfo="percent",
+                              insidetextfont=dict(size=11))
+            fig.update_layout(
+                height=320,
+                margin=dict(l=10, r=10, t=30, b=30),
+                paper_bgcolor="rgba(0,0,0,0)",
+                showlegend=True,
+                legend=dict(orientation="v", x=1.02, y=0.5,
+                            font=dict(size=10)),
+            )
             st.plotly_chart(fig, use_container_width=True)
 
     # Team / vehicle breakdown (only if columns exist)
@@ -767,21 +776,33 @@ with tab2:
 
                 fig_rt = go.Figure()
                 for team in sorted(valid_teams, key=str):
-                    team_df = df[df["route_team"] == team]
-                    wk_team = (team_df.groupby("week_start")["name"]
-                                      .nunique().reset_index()
-                                      .rename(columns={"name":"count"}))
-                    wk_team = wk_team.sort_values("week_start")
-                    x_labels = wk_team["week_start"].apply(
-                        lambda w: w.strftime("%b %Y") if period_type == "Monthly"
-                        else w.strftime("%d %b"))
+                    team_df = df[df["route_team"] == team].copy()
+
+                    if period_type == "Monthly":
+                        # Monthly average — much smoother
+                        wk_team = (team_df.groupby("month")["name"]
+                                          .nunique().reset_index()
+                                          .rename(columns={"name":"count","month":"label"}))
+                        # Sort by month order
+                        month_order = {m: i for i, m in enumerate(all_months)}
+                        wk_team["sort"] = wk_team["label"].map(month_order)
+                        wk_team = wk_team.sort_values("sort")
+                        x_vals = wk_team["label"]
+                        y_vals = wk_team["count"]
+                    else:
+                        wk_team = (team_df.groupby("week_start")["name"]
+                                          .nunique().reset_index()
+                                          .rename(columns={"name":"count"}))
+                        wk_team = wk_team.sort_values("week_start")
+                        x_vals = wk_team["week_start"].apply(lambda w: w.strftime("%d %b"))
+                        y_vals = wk_team["count"]
+
                     fig_rt.add_trace(go.Scatter(
-                        x=x_labels,
-                        y=wk_team["count"],
+                        x=x_vals, y=y_vals,
                         mode="lines+markers",
                         name=f"Team {team}",
-                        line=dict(color=team_colors.get(str(team), "#888"), width=2),
-                        marker=dict(size=5),
+                        line=dict(color=team_colors.get(str(team), "#888"), width=2.5),
+                        marker=dict(size=6),
                         hovertemplate=f"<b>Team {team}</b><br>%{{x}}<br>%{{y}} on leave<extra></extra>",
                     ))
 
