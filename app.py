@@ -609,9 +609,9 @@ with tab1:
                       for wk, c in zip(display_weeks, conc_row)]
 
         color_scale = [
-            [0.00, "#f0f0f0"], [0.13, "#378ADD"], [0.26, "#1D9E75"],
-            [0.39, "#D4537E"], [0.52, "#7F77DD"], [0.65, "#BA7517"],
-            [0.78, "#D85A30"], [0.90, "#888780"], [1.00, "#888780"],
+            [0.00, "#f0f0f0"], [0.13, "#0077BB"], [0.26, "#88BBDD"],
+            [0.39, "#EE7733"], [0.52, "#CC3377"], [0.65, "#AA4499"],
+            [0.78, "#DDAA33"], [0.90, "#BB5522"], [1.00, "#BBBBBB"],
         ]
 
         fig_cal = go.Figure()
@@ -773,7 +773,7 @@ with tab2:
                                 staff=("name","nunique"))
                            .reset_index()
                            .sort_values("weeks", ascending=False))
-                vcolors = {"Motorbike":"#378ADD","EDV":"#1D9E75","Both":"#7F77DD","Unknown":"#888780"}
+                vcolors = {"Motorbike":"#0077BB","EDV":"#EE7733","Both":"#AA4499","Unknown":"#BBBBBB","N/A":"#DDDDDD"}
                 vt_df["color"] = vt_df["vehicle_type"].map(vcolors).fillna("#888780")
                 vt_df["hover"] = vt_df.apply(
                     lambda r: f"<b>{r['vehicle_type']}</b><br>{r['weeks']} leave weeks<br>{r['staff']} unique staff", axis=1)
