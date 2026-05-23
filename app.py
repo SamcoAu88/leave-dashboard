@@ -521,8 +521,17 @@ with tab1:
     st.caption("Coloured = on leave. Numbers at bottom = concurrent count. Red = above threshold.")
 
     if not df.empty and filtered_weeks:
+        # ── Legend ABOVE calendar ──
+        st.markdown("**Legend:**")
+        leg_cols = st.columns(len(LEAVE_COLORS))
+        for i, (lt, color) in enumerate(LEAVE_COLORS.items()):
+            with leg_cols[i]:
+                st.markdown(
+                    f'<div style="background:{color};border-radius:4px;padding:4px 6px;'                    f'font-size:11px;color:white;text-align:center;margin-bottom:8px">{lt}</div>',
+                    unsafe_allow_html=True)
+
         display_names = [n for n in all_names if n in filtered_names]
-        display_weeks = sorted(set(filtered_weeks))[:60]   # cap at 60 weeks for readability
+        display_weeks = sorted(set(filtered_weeks))[:60]
 
         cal_data = {}
         for name in display_names:
@@ -540,14 +549,29 @@ with tab1:
             for wk in display_weeks:
                 lt = cal_data[name].get(wk, "")
                 row_z.append(color_map.get(lt, 0))
-                iso = f"W{wk.isocalendar()[1]:02d}"
-                row_h.append(f"{name}<br>{iso} ({wk.strftime('%d %b %Y')})<br>{lt if lt else 'Working'}")
+                row_h.append(
+                    f"{name}<br>{wk.strftime('%d %b %Y')}<br>{lt if lt else 'Working'}")
             z_vals.append(row_z)
             hover_text.append(row_h)
 
-        week_labels_display = [f"W{wk.isocalendar()[1]:02d}" for wk in display_weeks]
-        conc_row   = [conc_df[conc_df["week_start"] == wk]["concurrent_count"].sum() for wk in display_weeks]
-        conc_hover = [f"{f'W{wk.isocalendar()[1]:02d}'} ({wk.strftime('%d %b %Y')})<br>{c} staff on leave"
+        # X-axis: monthly → "Feb 2026" per month group, weekly → "09 Feb" per week
+        if period_type == "Monthly":
+            # Show month name only when it changes, blank otherwise
+            week_labels_display = []
+            prev_month = None
+            for wk in display_weeks:
+                m = wk.strftime("%b %Y")
+                if m != prev_month:
+                    week_labels_display.append(m)
+                    prev_month = m
+                else:
+                    week_labels_display.append("")
+        else:
+            week_labels_display = [wk.strftime("%d %b") for wk in display_weeks]
+
+        conc_row   = [conc_df[conc_df["week_start"] == wk]["concurrent_count"].sum()
+                      for wk in display_weeks]
+        conc_hover = [f"{wk.strftime('%d %b %Y')}<br>{c} staff on leave"
                       for wk, c in zip(display_weeks, conc_row)]
 
         color_scale = [
@@ -574,20 +598,13 @@ with tab1:
         fig_cal.update_layout(
             height=max(350, n_staff * 30 + 160),
             margin=dict(l=0, r=0, t=10, b=10),
-            xaxis=dict(tickangle=-60, tickfont=dict(size=10)),
+            xaxis=dict(tickangle=-45, tickfont=dict(size=10)),
             yaxis=dict(tickfont=dict(size=11)),
             yaxis2=dict(overlaying="y", side="right", showgrid=False,
                         showticklabels=False, range=[0, max(len(filtered_names), 1)]),
             plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_cal, use_container_width=True)
-
-        st.markdown("**Legend:**")
-        leg_cols = st.columns(len(LEAVE_COLORS))
-        for i, (lt, color) in enumerate(LEAVE_COLORS.items()):
-            with leg_cols[i]:
-                st.markdown(f'<div style="background:{color};border-radius:4px;padding:4px 6px;font-size:11px;color:white;text-align:center">{lt}</div>',
-                            unsafe_allow_html=True)
     else:
         st.info("No leave data matches the current filters.")
 
