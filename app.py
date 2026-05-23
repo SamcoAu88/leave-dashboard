@@ -1109,40 +1109,38 @@ with tab5:
         render_entry_form(all_staff_names)
 
     with col_data:
-        st.markdown("#### Single day leave register")
         sdl_fresh = load_single_day_leave()
-        if not sdl_fresh.empty:
-            display_sdl = sdl_fresh.copy()
-            # Sort by date BEFORE formatting
-            if "date" in display_sdl.columns:
-                display_sdl = display_sdl.sort_values("date", ascending=False)
-                display_sdl["date"] = pd.to_datetime(display_sdl["date"]).dt.strftime("%d %b %Y")
-            display_sdl = display_sdl.rename(columns={
-                "name": "Name", "date": "Date",
-                "leave_type": "Leave type", "notes": "Notes"
-            })
-            st.dataframe(display_sdl, use_container_width=True, hide_index=True)
 
-            # Next 2 weeks highlight
+        if not sdl_fresh.empty and "date" in sdl_fresh.columns:
+            today    = pd.Timestamp.today().normalize()
+            two_wks  = today + pd.Timedelta(days=14)
+
+            # Next 2 weeks
             st.markdown("#### Next 2 weeks")
-            today = pd.Timestamp.today().normalize()
-            two_wks = today + pd.Timedelta(days=14)
             sdl_soon = sdl_fresh[
-                (pd.to_datetime(sdl_fresh["date"]) >= today) &
-                (pd.to_datetime(sdl_fresh["date"]) <= two_wks)
-            ].copy()
+                (sdl_fresh["date"] >= today) &
+                (sdl_fresh["date"] <= two_wks)
+            ].copy().sort_values("date")
+
             if not sdl_soon.empty:
-                sdl_soon["date"] = pd.to_datetime(sdl_soon["date"]).dt.strftime("%a %d %b")
-                sdl_soon = sdl_soon.rename(columns={
-                    "name":"Name","date":"Date",
-                    "leave_type":"Leave type","notes":"Notes"
-                })
-                st.dataframe(sdl_soon.sort_values("Date"),
-                            use_container_width=True, hide_index=True)
+                sdl_soon["date"] = sdl_soon["date"].dt.strftime("%a %d %b %Y")
+                sdl_soon.columns = [c.replace("_"," ").title() for c in sdl_soon.columns]
+                st.dataframe(sdl_soon, use_container_width=True, hide_index=True)
             else:
                 st.info("No single day leave in the next 2 weeks.")
+
+            # Full register
+            st.markdown("#### Full register")
+            display_sdl = sdl_fresh.copy().sort_values("date", ascending=False)
+            display_sdl["date"] = display_sdl["date"].dt.strftime("%d %b %Y")
+            display_sdl.columns = [c.replace("_"," ").title() for c in display_sdl.columns]
+            st.dataframe(display_sdl, use_container_width=True, hide_index=True)
+
+            csv = display_sdl.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇️ Download as CSV", data=csv,
+                               file_name="single_day_leave.csv", mime="text/csv")
         else:
-            st.info("No single day leave entries yet. Use the form to add entries.")
+            st.info("No entries yet. Use the form on the left to add single day leave.")
 
 st.divider()
 st.caption("Built for Brisbane Central Stafford DC · Australia Post · Annual Leave Dashboard")
