@@ -560,8 +560,20 @@ with tab1:
                     f'<div style="background:{color};border-radius:4px;padding:4px 6px;'                    f'font-size:11px;color:white;text-align:center;margin-bottom:8px">{lt}</div>',
                     unsafe_allow_html=True)
 
-        display_names = [n for n in all_names
-                         if n in filtered_names and str(n).strip() not in ("", "None", "nan")]
+        def format_name(n):
+            """If name has multiple words, show as SURNAME, Firstname."""
+            parts = str(n).strip().split()
+            if len(parts) >= 2:
+                return f"{parts[-1].upper()}, {' '.join(parts[:-1])}"
+            return str(n).strip().upper()
+
+        display_names_raw = sorted(
+            [n for n in all_names
+             if n in filtered_names and str(n).strip() not in ("", "None", "nan")],
+            key=lambda n: format_name(n)
+        )
+        display_names = display_names_raw   # keep original for data lookup
+        display_labels = [format_name(n) for n in display_names_raw]
         display_weeks = sorted(set(filtered_weeks))[:60]
 
         cal_data = {}
@@ -617,7 +629,7 @@ with tab1:
 
         fig_cal = go.Figure()
         fig_cal.add_trace(go.Heatmap(
-            z=z_vals, x=week_labels_display, y=display_names,
+            z=z_vals, x=week_labels_display, y=display_labels,
             text=hover_text, hovertemplate="%{text}<extra></extra>",
             colorscale=color_scale, showscale=False, xgap=1, ygap=1,
             zmin=0, zmax=len(LEAVE_COLORS),
@@ -629,7 +641,7 @@ with tab1:
             hovertemplate="%{customdata}<extra></extra>",
             customdata=conc_hover, showlegend=False,
         ))
-        n_staff = len(display_names)
+        n_staff = len(display_labels)
         # Top labels via annotations — most reliable way with heatmap
         top_annotations = []
         if period_type == "Monthly":
