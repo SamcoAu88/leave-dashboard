@@ -685,7 +685,7 @@ with tab1:
 
 # ── Tab 2: Analysis ───────────────────────────────────────────────────────────
 with tab2:
-    col_r, col_l = st.columns(2)
+    col_l, col_r = st.columns(2)
 
     with col_l:
         if period_type == "Monthly":
@@ -831,39 +831,72 @@ with tab2:
                 )
                 st.plotly_chart(fig_rt, use_container_width=True)
 
-        if has_vehicle and not df.empty:
+        if not df_all.empty:
             with bc2:
-                st.markdown("#### Leave weeks by vehicle type")
-                vt_df = (df.groupby("vehicle_type")
-                           .agg(weeks=("name","count"),
-                                staff=("name","nunique"))
-                           .reset_index()
-                           .sort_values("weeks", ascending=False))
-                vcolors = {"Motorbike":"#0077BB","EDV":"#EE7733","Both":"#AA4499","Unknown":"#BBBBBB","N/A":"#DDDDDD"}
-                vt_df["color"] = vt_df["vehicle_type"].map(vcolors).fillna("#888780")
-                vt_df["hover"] = vt_df.apply(
-                    lambda r: f"<b>{r['vehicle_type']}</b><br>{r['weeks']} leave weeks<br>{r['staff']} unique staff", axis=1)
-                fig_v = go.Figure(go.Bar(
-                    x=vt_df["vehicle_type"], y=vt_df["weeks"],
-                    marker_color=vt_df["color"],
-                    text=vt_df["weeks"], textposition="outside",
-                    hovertemplate="%{customdata}<extra></extra>",
-                    customdata=vt_df["hover"],
-                ))
-                # Add minimum threshold lines
-                if min_motorbike > 0:
-                    fig_v.add_hline(y=min_motorbike * 4, line_dash="dot",
-                                    line_color="#378ADD", line_width=1.5,
-                                    annotation_text=f"Motorbike min threshold",
-                                    annotation_font_color="#378ADD")
-                if min_edv > 0:
-                    fig_v.add_hline(y=min_edv * 4, line_dash="dot",
-                                    line_color="#1D9E75", line_width=1.5,
-                                    annotation_text=f"EDV min threshold",
-                                    annotation_font_color="#1D9E75")
-                fig_v.update_layout(showlegend=False, margin=dict(l=0,r=0,t=10,b=10),
-                                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_v, use_container_width=True)
+                st.markdown("#### Next 2 weeks — daily leave by team")
+                today = datetime.today().date()
+                # Find next Monday
+                days_to_mon = (7 - today.weekday()) % 7 or 7
+                next_mon = today + timedelta(days=days_to_mon - today.weekday() if today.weekday() != 0 else 0)
+                next_mon = today - timedelta(days=today.weekday())  # this Monday
+                two_weeks_days = [next_mon + timedelta(days=i) for i in range(14)
+                                  if (next_mon + timedelta(days=i)).weekday() < 5]  # Mon-Fri only
+
+                # All depots for team breakdown
+                depot_colors = {
+                    "PDO":        "#0077BB",
+                    "Relief":     "#EE7733",
+                    "Night Shift":"#AA4499",
+                    "Mid Shift":  "#DDAA33",
+                    "Admin":      "#BB5522",
+                    "Admin/Ops":  "#BB5522",
+                    "GPO":        "#88BBDD",
+                    "Management": "#CC3377",
+                }
+
+                # For each day, check which weeks overlap and count per depot
+                # leave data is weekly — a person on leave that week = on leave Mon-Fri
+                fig_next = go.Figure()
+                depots_in_data = sorted(df_all["depot"].dropna().unique())
+
+                for depot in depots_in_data:
+                    if not depot or str(depot).strip() in ("", "4am Slotters"):
+                        continue
+                    depot_label = "Admin" if depot == "Admin/Ops" else depot
+                    depot_df = df_all[df_all["depot"] == depot]
+                    day_counts = []
+                    for day in two_weeks_days:
+                        # Find the Monday of this day's week
+                        wk_start = day - timedelta(days=day.weekday())
+                        wk_start_dt = datetime.combine(wk_start, datetime.min.time())
+                        on_leave = depot_df[depot_df["week_start"] == wk_start_dt]["name"].nunique()
+                        day_counts.append(on_leave)
+
+                    color = depot_colors.get(depot, "#BBBBBB")
+                    fig_next.add_trace(go.Bar(
+                        x=[d.strftime("%a %d %b") for d in two_weeks_days],
+                        y=day_counts,
+                        name=depot_label,
+                        marker_color=color,
+                        hovertemplate=f"<b>{depot_label}</b><br>%{{x}}<br>%{{y}} on leave<extra></extra>",
+                    ))
+
+                fig_next.add_hline(
+                    y=threshold, line_dash="dash", line_color="#E24B4A", line_width=1.5,
+                    annotation_text=f"Threshold ({threshold})",
+                    annotation_position="top right", annotation_font_color="#E24B4A",
+                )
+                fig_next.update_layout(
+                    barmode="stack",
+                    height=320,
+                    margin=dict(l=0, r=0, t=10, b=10),
+                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                    xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
+                    yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                xanchor="right", x=1, font=dict(size=10)),
+                )
+                st.plotly_chart(fig_next, use_container_width=True)
 
     st.markdown("#### Concurrent leave over time — by vehicle type")
     if not conc_df.empty and not df.empty:
