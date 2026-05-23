@@ -209,11 +209,12 @@ with st.sidebar:
 
     # ── Thresholds ──
     st.caption("🚨 Alert thresholds")
-    threshold = st.slider("Max concurrent on leave", 1, 20, 15)
+    threshold = st.slider("Max concurrent on leave", 1, 30, 15)
     st.caption("📊 Minimum staff on duty")
-    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 25)
-    min_edv       = st.slider("🚐 EDV",        0, 30, 25)
-    min_relief    = st.slider("👤 Relief",      0, 30, 15)
+    st.caption("Slide to set minimum number of staff required on duty.")
+    min_motorbike = st.slider("🏍️ Motorbike", 0, 60, 25)
+    min_edv       = st.slider("🚐 EDV",        0, 60, 25)
+    min_relief    = st.slider("👤 Relief",      0, 40, 15)
 
 
 # ── Load single day leave from Google Sheets ─────────────────────────────────
