@@ -930,19 +930,52 @@ with tab3:
                                 xaxis_tickangle=-30)
         st.plotly_chart(fig_staff, use_container_width=True)
 
-        st.markdown("#### Individual timeline")
+        st.markdown("#### Individual leave timeline")
         selected_person = st.selectbox("Select staff member", sorted(df["name"].unique()))
         person_df = df[df["name"] == selected_person].sort_values("week_start")
         if not person_df.empty:
-            tl_data = [{"Task": r["leave_type"], "Start": r["week_start"],
-                        "Finish": r["week_start"] + timedelta(days=4), "Leave type": r["leave_type"]}
-                       for _, r in person_df.iterrows()]
-            tl_df = pd.DataFrame(tl_data)
-            fig_tl = px.timeline(tl_df, x_start="Start", x_end="Finish", y="Task",
-                                 color="Leave type", color_discrete_map=LEAVE_COLORS)
-            fig_tl.update_yaxes(autorange="reversed")
-            fig_tl.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                 plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)")
+            # Build full week spine so gaps show as zero (continuous line)
+            all_wk_dates = pd.DataFrame({"week_start": filtered_weeks})
+            leave_types  = person_df["leave_type"].unique()
+
+            fig_tl = go.Figure()
+
+            for lt in sorted(leave_types):
+                lt_df = person_df[person_df["leave_type"] == lt]
+                # Merge onto full week spine — 1 if on leave that week, 0 otherwise
+                merged = all_wk_dates.merge(
+                    lt_df[["week_start"]].assign(on_leave=1),
+                    on="week_start", how="left"
+                ).fillna(0)
+                color = LEAVE_COLORS.get(lt, "#888")
+                fig_tl.add_trace(go.Scatter(
+                    x=merged["week_start"],
+                    y=merged["on_leave"],
+                    mode="lines+markers",
+                    name=lt,
+                    line=dict(color=color, width=2, shape="hv"),
+                    marker=dict(size=6, color=color),
+                    fill="tozeroy",
+                    fillcolor=color.replace(")", ",0.15)").replace("rgb","rgba") if "rgb" in color else color + "26",
+                    hovertemplate=f"<b>{lt}</b><br>%{{x|%d %b %Y}}<br>On leave<extra></extra>",
+                ))
+
+            fig_tl.update_layout(
+                height=220,
+                margin=dict(l=0, r=0, t=10, b=10),
+                plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(
+                    type="date",
+                    tickformat="%d %b",
+                    tickangle=-45, tickfont=dict(size=10),
+                    showgrid=True, gridcolor="#f0f0f0",
+                ),
+                yaxis=dict(showticklabels=False, showgrid=False,
+                           range=[-0.1, 1.4], zeroline=False),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="right", x=1),
+                showlegend=True,
+            )
             st.plotly_chart(fig_tl, use_container_width=True)
 
             info = person_df.iloc[0]
