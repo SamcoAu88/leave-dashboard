@@ -859,7 +859,7 @@ with tab2:
                 fig_next = go.Figure()
                 depots_in_data = sorted(df_all["depot"].dropna().unique())
 
-                for depot in depots_in_data:
+                for depot in sorted(depots_in_data, key=lambda x: str(x).strip()):
                     if not depot or str(depot).strip() in ("", "4am Slotters"):
                         continue
                     depot_label = "Admin" if depot == "Admin/Ops" else depot
