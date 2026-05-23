@@ -981,7 +981,7 @@ with tab3:
                            labels={"name":"","total_weeks":"Weeks on leave"})
         fig_staff.update_traces(textposition="outside")
         fig_staff.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                plot_bgcolor="green", paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="gray", paper_bgcolor="rgba(0,0,0,0)",
                                 xaxis_tickangle=-30)
         st.plotly_chart(fig_staff, use_container_width=True)
 
