@@ -258,14 +258,20 @@ total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()     
 total_relief    = df_all[df_all["depot"] == "Relief"]["name"].nunique()             if not df_all.empty else 0
 
 if not conc_df.empty:
-    # X-axis labels: monthly view → "Feb 2026", weekly view → "09 Feb"
-    def make_x_label(wk):
-        if period_type == "Monthly":
-            return wk.strftime("%b %Y")
-        else:
-            return wk.strftime("%d %b")
+    # X-axis labels: always show week start date, but monthly view groups by month
+    # Monthly: "09 Feb" per week, with month name shown via ticktext
+    # Weekly:  "09 Feb" per week
+    conc_df["x_label"] = conc_df["week_start"].apply(lambda wk: wk.strftime("%d %b"))
 
-    conc_df["x_label"] = conc_df["week_start"].apply(make_x_label)
+    # For monthly view, build month boundary annotations
+    month_boundaries = []
+    if period_type == "Monthly":
+        prev_month = None
+        for _, row in conc_df.iterrows():
+            m = row["week_start"].strftime("%b %Y")
+            if m != prev_month:
+                month_boundaries.append((row["x_label"], m))
+                prev_month = m
 
     # Per-week breakdown: how many motorbike/edv/relief are on leave each week
     wk_vehicle_counts = {}
@@ -407,14 +413,35 @@ if not conc_df.empty:
                 annotation_position="bottom right", annotation_font_color="#D4537E",
             )
 
+    # Add month divider lines for monthly view
+    shapes, annotations = [], []
+    if period_type == "Monthly" and month_boundaries:
+        for i, (x_pos, month_name) in enumerate(month_boundaries):
+            if i > 0:
+                shapes.append(dict(
+                    type="line", xref="x", yref="paper",
+                    x0=x_pos, x1=x_pos, y0=0, y1=1,
+                    line=dict(color="rgba(150,150,150,0.4)", width=1, dash="dot")
+                ))
+            annotations.append(dict(
+                xref="x", yref="paper",
+                x=x_pos, y=1.04,
+                text=f"<b>{month_name}</b>",
+                showarrow=False,
+                font=dict(size=10, color="#888"),
+                xanchor="left"
+            ))
+
     fig_load.update_layout(
-        height=300,
-        margin=dict(l=0, r=0, t=10, b=10),
+        height=320,
+        margin=dict(l=0, r=0, t=30, b=10),
         plot_bgcolor="white",
         paper_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickangle=-60, tickfont=dict(size=10), showgrid=False),
         yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
         showlegend=False,
+        shapes=shapes,
+        annotations=annotations,
     )
 
     leg_l, leg_a, leg_ok, _ = st.columns([1, 1, 1, 5])
@@ -708,8 +735,7 @@ with tab2:
         bkdn_df = pd.DataFrame(wk_breakdown)
 
         fig_conc = go.Figure()
-        bkdn_df["x_label"] = bkdn_df["week_start"].apply(
-            lambda w: w.strftime("%b %Y") if period_type == "Monthly" else w.strftime("%d %b"))
+        bkdn_df["x_label"] = bkdn_df["week_start"].apply(lambda w: w.strftime("%d %b"))
         fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Motorbike"],
                                    name="Motorbike", marker_color="#378ADD"))
         fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["EDV"],
