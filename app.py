@@ -820,23 +820,42 @@ with tab2:
                 )
                 st.plotly_chart(fig_next, use_container_width=True)
 
-    st.markdown("#### Concurrent leave over time — by vehicle type")
+    st.markdown("#### Concurrent leave over time — by team")
     if not conc_df.empty and not df.empty:
-        # Per week, count how many motorbike/edv/relief ON LEAVE
+        depot_color_map = {
+            "PDO":         "#0077BB",
+            "Relief":      "#EE7733",
+            "Night Shift": "#AA4499",
+            "Mid Shift":   "#DDAA33",
+            "Admin":       "#BB5522",
+            "Admin/Ops":   "#BB5522",
+            "GPO":         "#88BBDD",
+            "Management":  "#CC3377",
+        }
+        all_depots_conc = sorted([
+            d for d in df["depot"].dropna().unique()
+            if str(d).strip() not in ("", "4am Slotters")
+        ])
         wk_breakdown = []
         for wk in filtered_weeks:
             wk_df_b = df[df["week_start"] == wk]
-            mb = wk_df_b[wk_df_b["vehicle_type"] == "Motorbike"]["name"].nunique()
-            edv= wk_df_b[wk_df_b["vehicle_type"] == "EDV"]["name"].nunique()
-            oth= wk_df_b[~wk_df_b["vehicle_type"].isin(["Motorbike","EDV"])]["name"].nunique()
-            wk_breakdown.append({"week_start": wk,
-                                  "iso_week": f"W{wk.isocalendar()[1]:02d}",
-                                  "Motorbike": mb, "EDV": edv, "Other/Both": oth})
+            x_lbl = wk.strftime("%b %Y") if period_type == "Monthly" else wk.strftime("%d %b")
+            row = {"week_start": wk, "x_label": x_lbl}
+            for depot in all_depots_conc:
+                row[depot] = wk_df_b[wk_df_b["depot"] == depot]["name"].nunique()
+            wk_breakdown.append(row)
         bkdn_df = pd.DataFrame(wk_breakdown)
 
         fig_conc = go.Figure()
+        for depot in all_depots_conc:
+            label = "Admin" if depot == "Admin/Ops" else depot
+            color = depot_color_map.get(depot, "#BBBBBB")
+            if depot in bkdn_df.columns:
+                fig_conc.add_trace(go.Bar(
+                    x=bkdn_df["x_label"], y=bkdn_df[depot],
+                    name=label, marker_color=color,
+                ))
 
-        
         fig_conc.add_hline(y=threshold, line_dash="dash", line_color="#E24B4A",
                             line_width=1.5,
                             annotation_text=f"Max concurrent ({threshold})",
