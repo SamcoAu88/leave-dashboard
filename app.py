@@ -83,25 +83,25 @@ with st.sidebar:
     st.caption("Time period")
 
     if period_type == "Monthly":
-        # Default: prior month to 13 months from now
+        # Slider = start month only, always show 13 months from that point
         from datetime import date
         today_m = date.today().replace(day=1)
-        prior_m = (today_m.replace(day=1) - pd.DateOffset(months=1)).strftime("%b %Y")
-        end_13m = (today_m.replace(day=1) + pd.DateOffset(months=13)).strftime("%b %Y")
-        default_start = prior_m if prior_m in all_months else all_months[0]
-        default_end   = end_13m  if end_13m  in all_months else all_months[-1]
-        month_filter = st.select_slider(
-            "Month range",
+        default_start = (today_m - pd.DateOffset(months=1)).strftime("%b %Y")
+        default_start = default_start if default_start in all_months else all_months[0]
+
+        start_month = st.select_slider(
+            "Start month",
             options=all_months,
-            value=(default_start, default_end),
+            value=default_start,
             label_visibility="collapsed",
         )
-        # Convert range to list
-        i0 = all_months.index(month_filter[0])
-        i1 = all_months.index(month_filter[1])
-        month_filter = all_months[i0:i1+1]
+        # Always show 13 months from selected start
+        i0 = all_months.index(start_month)
+        i_end = i0 + 13  # 13 months window
+        month_filter = all_months[i0:i_end]  # may be shorter if near end of data
         week_filter  = None
-        st.caption(f"📅 {month_filter[0]} → {month_filter[-1]}  ({len(month_filter)} months)")
+        end_label = month_filter[-1] if month_filter else "—"
+        st.caption(f"📅 {start_month} → {end_label}  (13 months)")
     else:
         week_filter  = st.select_slider(
             "Week range",
@@ -291,7 +291,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️ Staff on leave")
+st.markdown("#### ⚠️  Staff on leave")
 
 # Total staff counts for minimum thresholds
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
@@ -894,32 +894,82 @@ with tab2:
         if period_type == "Monthly":
             st.markdown("#### Staff on leave by month")
             if not df.empty:
-                month_df = (df.groupby("month")
-                              .agg(staff_count=("name", "nunique"),
-                                   leave_weeks=("name", "count"))
-                              .reset_index())
-                month_df["month"] = pd.Categorical(month_df["month"], categories=all_months, ordered=True)
-                month_df = month_df.sort_values("month")
-                month_df["full_wks"]   = df[df["leave_type"]=="Annual Leave"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
-                month_df["partial_wks"]= df[df["leave_type"]=="Annual Leave (partial week)"].groupby("month")["name"].count().reindex(month_df["month"].astype(str)).fillna(0).values
-                month_df["days_lost"]  = month_df["full_wks"]*5 + month_df["partial_wks"]*3 + (month_df["leave_weeks"]-month_df["full_wks"]-month_df["partial_wks"])*5
-                month_df["hover"] = month_df.apply(
-                    lambda r: (f"<b>{r['month']}</b><br>"
-                               f"<b>{int(r['staff_count'])} staff on leave</b><br>"
-                               f"{int(r['full_wks'])} full week  +  {int(r['partial_wks'])} partial<br>"
-                               f"≈ {int(r['days_lost'])} working days lost"), axis=1)
+                # Build a full 13-month spine including future months
+                today_dt = pd.Timestamp.today().normalize()
+                all_13_months = month_filter  # already 13 months from slider
+
+                # Get actual data per month
+                month_data = (df.groupby("month")
+                               .agg(staff_count=("name","nunique"),
+                                    leave_weeks=("name","count"))
+                               .reset_index())
+
+                # Build complete month list with "no data" for future
+                rows = []
+                for m in all_13_months:
+                    m_dt = pd.to_datetime("01 " + m, dayfirst=True)
+                    has_data = m in month_data["month"].values
+                    is_future = m_dt > today_dt
+                    if has_data:
+                        r = month_data[month_data["month"]==m].iloc[0]
+                        rows.append({"month": m, "staff_count": r["staff_count"],
+                                     "has_data": True, "is_future": False})
+                    elif is_future:
+                        rows.append({"month": m, "staff_count": 0,
+                                     "has_data": False, "is_future": True})
+                    else:
+                        rows.append({"month": m, "staff_count": 0,
+                                     "has_data": False, "is_future": False})
+
+                full_df = pd.DataFrame(rows)
+
+                bar_colors = []
+                for _, r in full_df.iterrows():
+                    if r["is_future"]:
+                        bar_colors.append("rgba(180,180,180,0.25)")
+                    elif r["staff_count"] == 0:
+                        bar_colors.append("#e0e0e0")
+                    else:
+                        bar_colors.append("#0077BB")
+
+                hover_texts = []
+                for _, r in full_df.iterrows():
+                    if r["is_future"]:
+                        hover_texts.append(f"<b>{r['month']}</b><br><i>No data available yet</i>")
+                    elif r["staff_count"] == 0:
+                        hover_texts.append(f"<b>{r['month']}</b><br>No leave recorded")
+                    else:
+                        hover_texts.append(f"<b>{r['month']}</b><br><b>{int(r['staff_count'])} staff on leave</b>")
+
                 fig = go.Figure(go.Bar(
-                    x=month_df["month"],
-                    y=month_df["staff_count"],
-                    marker_color=month_df["staff_count"],
-                    marker_colorscale=["#85B7EB","#378ADD","#E24B4A"],
+                    x=full_df["month"],
+                    y=full_df["staff_count"].where(~full_df["is_future"], other=None),
+                    marker_color=bar_colors,
                     hovertemplate="%{customdata}<extra></extra>",
-                    customdata=month_df["hover"],
+                    customdata=hover_texts,
                 ))
-                fig.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                  yaxis_title="Unique staff on leave",
-                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
-                                  xaxis_tickangle=-45)
+
+                # Add "No data" shading for future months
+                future_months = full_df[full_df["is_future"]]["month"].tolist()
+                if future_months:
+                    fig.add_trace(go.Bar(
+                        x=future_months,
+                        y=[full_df["staff_count"].max() or 5] * len(future_months),
+                        marker_color="rgba(200,200,200,0.15)",
+                        marker_line_color="rgba(180,180,180,0.3)",
+                        marker_line_width=1,
+                        hovertemplate=[f"<b>{m}</b><br><i>📭 No data available yet</i><extra></extra>"
+                                       for m in future_months],
+                        showlegend=False,
+                    ))
+
+                fig.update_layout(
+                    margin=dict(l=0,r=0,t=10,b=10),
+                    yaxis_title="Unique staff on leave",
+                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                    xaxis_tickangle=-45,
+                    barmode="overlay",
+                )
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.markdown("#### Staff on leave by week")
