@@ -778,64 +778,7 @@ if drill_options:
             st.info("No leave data for this period.")
 
 
-    # Who's off table — only alert weeks
-    if not alert_weeks_df.empty:
-        st.markdown(f"**{len(alert_weeks_df)} weeks above threshold — who's on leave:**")
 
-        table_rows = []
-        for _, row in alert_weeks_df.sort_values("week_start").iterrows():
-            wk    = row["week_start"]
-            wk_df = df[df["week_start"] == wk]
-            total = row["concurrent_count"]
-
-            # Team breakdown: "T1: 3  T2: 2  T3: 4  No team: 5"
-            teams = wk_df["route_team"].replace("", "No team").value_counts().to_dict()
-            team_parts = []
-            for t, c in sorted(teams.items()):
-                label = f"T{t}" if t not in ("No team", "—") else "No team"
-                pct   = round(c / total * 100)
-                team_parts.append(f"{label}: {c} ({pct}%)")
-            team_str = "   |   ".join(team_parts)
-
-            # Vehicle breakdown: "Motorbike: 6  EDV: 4  Unknown: 3"
-            vehicles = wk_df["vehicle_type"].value_counts().to_dict()
-            veh_parts = []
-            for v, c in sorted(vehicles.items(), key=lambda x: -x[1]):
-                pct = round(c / total * 100)
-                veh_parts.append(f"{v}: {c} ({pct}%)")
-            veh_str = "   |   ".join(veh_parts)
-
-            staff_names = sorted(row["staff_on_leave"])
-            table_rows.append({
-                "Week":        row["iso_week"],
-                "Date (Mon)":  wk.strftime("%d %b %Y"),
-                "# on leave":  total,
-                "By team":     team_str or "—",
-                "By vehicle":  veh_str  or "—",
-                "Staff":       ", ".join(staff_names),
-            })
-
-        tbl_df = pd.DataFrame(table_rows)
-
-        def colour_count(val):
-            if val >= threshold + 2:
-                return "background-color: #fde8e8; color: #a32d2d; font-weight:600"
-            elif val >= threshold:
-                return "background-color: #fef3cd; color: #854f0b; font-weight:600"
-            return ""
-
-        styled = (tbl_df.style
-                  .map(colour_count, subset=["# on leave"])
-                  .set_properties(subset=["Staff"], **{"white-space": "normal", "font-size": "12px"})
-                  .set_properties(subset=["By team","By vehicle"], **{"font-size": "12px", "white-space": "normal"})
-                  .set_properties(subset=["Week","Date (Mon)","# on leave"], **{"white-space": "nowrap"}))
-
-        st.dataframe(styled, use_container_width=True, hide_index=True,
-                     column_config={
-                         "Staff":      st.column_config.TextColumn(width="large"),
-                         "By team":    st.column_config.TextColumn(width="medium"),
-                         "By vehicle": st.column_config.TextColumn(width="medium"),
-                     })
 
 st.divider()
 
