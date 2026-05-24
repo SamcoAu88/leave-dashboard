@@ -32,7 +32,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_data
+@st.cache_data(ttl=300)
 def load_data(filepath):
     staff_list = parse_excel(filepath)
     df = build_leave_df(staff_list)
@@ -315,8 +315,9 @@ total_motorbike = df_all[df_all["vehicle_type"] == "Motorbike"]["name"].nunique(
 total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()        if not df_all.empty else 0
 total_relief    = df_all[df_all["depot"] == "Relief"]["name"].nunique()             if not df_all.empty else 0
 
-if not conc_df.empty:
-    # For monthly view: group concurrent counts by month (avg per week in that month)
+# Always build conc_display — even if conc_df is empty (future months)
+if True:
+    # For monthly view: group concurrent counts by month
     # For weekly view: keep weekly granularity
     if period_type == "Monthly":
         # Build full 13-month spine — include future/no-data months as 0
@@ -405,9 +406,12 @@ if not conc_df.empty:
         x_label = row["x_label"]
 
         if period_type == "Monthly":
-            # Monthly hover — simpler summary
-            h = (f"<b>{x_label}</b><br>"
-                 f"<b>Peak: {total} staff on leave</b>")
+            has_data = row.get("has_data", True)
+            if not has_data:
+                h = f"<b>{x_label}</b><br>📭 No data available yet"
+            else:
+                h = (f"<b>{x_label}</b><br>"
+                     f"<b>Peak: {total} staff on leave</b>")
         else:
             wk      = row["week_start"]
             wk_df_h = df[df["week_start"] == wk]
@@ -440,13 +444,23 @@ if not conc_df.empty:
         hover_texts.append(h)
 
     fig_load = go.Figure()
+    # Use small placeholder height for no-data months so they're visible
+    y_vals = []
+    for _, crow in conc_display.iterrows():
+        has_data = crow.get("has_data", True)
+        y_vals.append(crow["concurrent_count"] if has_data else 0.3)
+
     fig_load.add_trace(go.Bar(
         x=conc_display["x_label"],
-        y=conc_display["concurrent_count"],
+        y=y_vals,
         marker_color=bar_colors,
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_texts,
         name="Staff on leave",
+        text=["📭 No data" if not row.get("has_data", True) else ""
+              for _, row in conc_display.iterrows()],
+        textposition="inside",
+        textfont=dict(color="rgba(150,150,150,0.8)", size=10),
     ))
     fig_load.add_hline(
         y=threshold, line_dash="dash", line_color="#E24B4A", line_width=1.5,
