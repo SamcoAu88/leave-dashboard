@@ -657,23 +657,24 @@ with tab1:
                 m = wk.strftime("%b %Y")
                 if m != prev_m:
                     top_annotations.append(dict(
-                        x=lbl, y=1.02, xref="x", yref="paper",
+                        x=lbl, y=1.04, xref="x", yref="paper",
                         text=f"<b>{m}</b>",
                         showarrow=False,
                         font=dict(size=10, color="#555"),
                         xanchor="left",
+                        yanchor="bottom",
                     ))
                     prev_m = m
         else:
-            # Weekly: show every label at top
             for lbl in week_labels_display:
                 top_annotations.append(dict(
-                    x=lbl, y=1.02, xref="x", yref="paper",
+                    x=lbl, y=1.04, xref="x", yref="paper",
                     text=lbl,
                     showarrow=False,
                     font=dict(size=9, color="#555"),
                     xanchor="center",
                     textangle=-45,
+                    yanchor="bottom",
                 ))
 
         fig_cal.update_layout(
@@ -834,7 +835,7 @@ with tab2:
         bkdn_df = pd.DataFrame(wk_breakdown)
 
         fig_conc = go.Figure()
-        bkdn_df["x_label"] = bkdn_df["week_start"].apply(lambda w: w.strftime("%d %b"))
+
         fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Motorbike"],
                                    name="Motorbike", marker_color="#378ADD"))
         fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["EDV"],
@@ -981,7 +982,7 @@ with tab3:
                            labels={"name":"","total_weeks":"Weeks on leave"})
         fig_staff.update_traces(textposition="outside")
         fig_staff.update_layout(margin=dict(l=0,r=0,t=10,b=10),
-                                plot_bgcolor="grey", paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
                                 xaxis_tickangle=-30)
         st.plotly_chart(fig_staff, use_container_width=True)
 
