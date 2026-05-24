@@ -319,18 +319,28 @@ if not conc_df.empty:
     # For monthly view: group concurrent counts by month (avg per week in that month)
     # For weekly view: keep weekly granularity
     if period_type == "Monthly":
-        conc_df["month_label"] = conc_df["week_start"].apply(lambda w: w.strftime("%b %Y"))
-        conc_monthly = (conc_df.groupby("month_label")
+        # Build full 13-month spine — include future/no-data months as 0
+        if not conc_df.empty:
+            conc_df["month_label"] = conc_df["week_start"].apply(lambda w: w.strftime("%b %Y"))
+            conc_agg = (conc_df.groupby("month_label")
                                .agg(concurrent_count=("concurrent_count","max"),
                                     staff_on_leave=("staff_on_leave", lambda x: sorted(set(
                                         [name for sublist in x for name in sublist]))))
                                .reset_index())
-        # Sort by actual month order
-        month_order = {m: i for i, m in enumerate(all_months)}
-        conc_monthly["sort"] = conc_monthly["month_label"].map(month_order)
-        conc_monthly = conc_monthly.sort_values("sort").reset_index(drop=True)
-        conc_monthly["x_label"] = conc_monthly["month_label"]
-        conc_display = conc_monthly
+        else:
+            conc_agg = pd.DataFrame(columns=["month_label","concurrent_count","staff_on_leave"])
+
+        rows_cm = []
+        for m in month_filter:
+            has = m in conc_agg["month_label"].values if not conc_agg.empty else False
+            if has:
+                r = conc_agg[conc_agg["month_label"]==m].iloc[0]
+                rows_cm.append({"x_label": m, "concurrent_count": r["concurrent_count"],
+                                 "staff_on_leave": r["staff_on_leave"], "has_data": True})
+            else:
+                rows_cm.append({"x_label": m, "concurrent_count": 0,
+                                 "staff_on_leave": [], "has_data": False})
+        conc_display = pd.DataFrame(rows_cm)
     else:
         conc_df["x_label"] = conc_df["week_start"].apply(lambda wk: wk.strftime("%d %b"))
         conc_display = conc_df
@@ -445,33 +455,38 @@ if not conc_df.empty:
         annotation_font_color="#111111",
         annotation_bgcolor="rgba(255,255,255,0.8)",
     )
+    # Threshold lines — use annotations list to avoid overlap
+    extra_annotations = []
     if min_motorbike > 0:
-        fig_load.add_hline(
-            y=min_motorbike, line_dash="dot", line_color="#0077BB", line_width=1.5,
-            annotation_text=f"🏍️ Min motorbike on duty ({min_motorbike})",
-            annotation_position="top right",
-            annotation_font_color="#111111",
-            annotation_bgcolor="rgba(255,255,255,0.8)",
-        )
+        fig_load.add_hline(y=min_motorbike, line_dash="dot", line_color="#0077BB", line_width=1.5)
+        extra_annotations.append(dict(
+            xref="paper", yref="y", x=1.0, y=min_motorbike,
+            text=f"🏍️ Min motorbike ({min_motorbike})",
+            showarrow=False, xanchor="right", yanchor="bottom",
+            font=dict(color="#111111", size=11),
+            bgcolor="rgba(255,255,255,0.85)", borderpad=3,
+        ))
     if min_edv > 0:
-        fig_load.add_hline(
-            y=min_edv, line_dash="dot", line_color="#EE7733", line_width=1.5,
-            annotation_text=f"🚐 Min EDV on duty ({min_edv})",
-            annotation_position="top right",
-            annotation_font_color="#111111",
-            annotation_bgcolor="rgba(255,255,255,0.8)",
-        )
+        fig_load.add_hline(y=min_edv, line_dash="dot", line_color="#EE7733", line_width=1.5)
+        extra_annotations.append(dict(
+            xref="paper", yref="y", x=1.0, y=min_edv,
+            text=f"🚐 Min EDV ({min_edv})",
+            showarrow=False, xanchor="right", yanchor="top",
+            font=dict(color="#111111", size=11),
+            bgcolor="rgba(255,255,255,0.85)", borderpad=3,
+        ))
     if min_relief > 0:
-        fig_load.add_hline(
-            y=min_relief, line_dash="dot", line_color="#CC3377", line_width=1.5,
-            annotation_text=f"👤 Min relief on duty ({min_relief})",
-            annotation_position="top right",
-            annotation_font_color="#111111",
-            annotation_bgcolor="rgba(255,255,255,0.8)",
-        )
+        fig_load.add_hline(y=min_relief, line_dash="dot", line_color="#CC3377", line_width=1.5)
+        extra_annotations.append(dict(
+            xref="paper", yref="y", x=1.0, y=min_relief,
+            text=f"👤 Min relief ({min_relief})",
+            showarrow=False, xanchor="right", yanchor="bottom",
+            font=dict(color="#111111", size=11),
+            bgcolor="rgba(255,255,255,0.85)", borderpad=3,
+        ))
 
     # Add month divider lines for monthly view
-    shapes, annotations = [], []
+    shapes, annotations = [], extra_annotations
     if period_type == "Monthly" and month_boundaries:
         for i, (x_pos, month_name) in enumerate(month_boundaries):
             if i > 0:
