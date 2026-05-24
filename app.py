@@ -67,8 +67,17 @@ with st.sidebar:
     staff_list, df_all = load_data(DATA_FILE)
 
     all_weeks   = get_all_weeks()
-    week_labels = get_week_labels(all_weeks)
-    week_map    = dict(zip(week_labels, all_weeks))   # "W03 2026" → datetime
+
+    # Extend weeks 52 weeks beyond last data week for future sliding
+    last_wk = all_weeks[-1]
+    extra_weeks = []
+    for i in range(1, 53):
+        extra_wk = last_wk + timedelta(weeks=i)
+        extra_weeks.append(extra_wk)
+    all_weeks_extended = all_weeks + extra_weeks
+
+    week_labels = get_week_labels(all_weeks_extended)
+    week_map    = dict(zip(week_labels, all_weeks_extended))
 
     all_months = []
     seen_m = set()
@@ -116,17 +125,19 @@ with st.sidebar:
         week_filter = None
         st.caption(f"📅 {month_filter[0]} → {month_filter[-1]}  (13 months)")
     else:
-        week_filter  = st.select_slider(
-            "Week range",
+        # Default start = first week of data
+        default_week_start = week_labels[0]
+        start_week = st.select_slider(
+            "Start week",
             options=week_labels,
-            value=(week_labels[0], week_labels[-1]),
+            value=default_week_start,
             label_visibility="collapsed",
         )
-        i0 = week_labels.index(week_filter[0])
-        i1 = week_labels.index(week_filter[1])
-        week_filter  = week_labels[i0:i1+1]
+        i0 = week_labels.index(start_week)
+        week_filter  = week_labels[i0:i0 + 52]
         month_filter = None
-        st.caption(f"📅 {week_filter[0]} → {week_filter[-1]}  ({len(week_filter)} weeks)")
+        end_label = week_filter[-1] if week_filter else "—"
+        st.caption(f"📅 {start_week} → {end_label}  (52 weeks)")
 
     st.divider()
 
@@ -245,8 +256,12 @@ if period_type == "Monthly" and month_filter:
     df = df[df["month"].isin(month_filter)]
     filtered_weeks = [wk for wk in all_weeks if wk.strftime("%b %Y") in month_filter]
 elif period_type == "Weekly" and week_filter:
+    # Only filter df on weeks that have actual data
+    data_week_labels = get_week_labels(all_weeks)
     df = df[df["iso_week"].isin(week_filter)]
-    filtered_weeks = [week_map[w] for w in week_filter if w in week_map]
+    filtered_weeks      = [week_map[w] for w in week_filter if w in week_map]
+    future_week_labels  = [w for w in week_filter if w not in data_week_labels]
+    future_week_dates   = [week_map[w] for w in future_week_labels if w in week_map]
 else:
     filtered_weeks = all_weeks
 
@@ -343,8 +358,27 @@ if True:
                                  "staff_on_leave": [], "has_data": False})
         conc_display = pd.DataFrame(rows_cm)
     else:
-        conc_df["x_label"] = conc_df["week_start"].apply(lambda wk: wk.strftime("%d %b"))
-        conc_display = conc_df
+        # Build full 52-week spine including future no-data weeks
+        data_week_set = set(get_week_labels(all_weeks))
+        rows_wk = []
+        for wlbl in week_filter:
+            wk_dt = week_map.get(wlbl)
+            is_future = wlbl not in data_week_set
+            if not is_future and not conc_df.empty:
+                match = conc_df[conc_df["week_start"] == wk_dt]
+                if not match.empty:
+                    r = match.iloc[0]
+                    rows_wk.append({"x_label": wk_dt.strftime("%d %b") if wk_dt else wlbl,
+                                    "concurrent_count": r["concurrent_count"],
+                                    "staff_on_leave": r["staff_on_leave"],
+                                    "has_data": True})
+                    continue
+            rows_wk.append({"x_label": wk_dt.strftime("%d %b") if wk_dt else wlbl,
+                             "concurrent_count": 0,
+                             "staff_on_leave": [],
+                             "has_data": False})
+        conc_display = pd.DataFrame(rows_wk) if rows_wk else pd.DataFrame(
+            columns=["x_label","concurrent_count","staff_on_leave","has_data"])
 
     month_boundaries = []
 
