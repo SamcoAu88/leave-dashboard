@@ -381,8 +381,9 @@ if period_type == "Daily" and day_filter:
         "Mid Shift":"#DDAA33","Admin":"#BB5522","Admin/Ops":"#BB5522",
         "GPO":"#88BBDD","Management":"#CC3377",
     }
+    # Use filtered df — respects all sidebar filters
     all_depots_daily = sorted([
-        d for d in df_all["depot"].dropna().unique()
+        d for d in df["depot"].dropna().unique()
         if str(d).strip() not in ("","4am Slotters")
     ])
 
@@ -400,19 +401,16 @@ if period_type == "Daily" and day_filter:
                 y_vals.append(0)
                 hover_vals.append(f"<b>{day_date.strftime('%a %d %b %Y')}</b><br>📭 No data yet")
                 continue
-            # Count from leave_data (weekly — if week contains this day)
             wk_start = day_date - timedelta(days=day_date.weekday())
             wk_dt    = datetime.combine(wk_start, datetime.min.time())
-            depot_df = df_all[df_all["depot"] == depot]
+            # Use filtered df to respect all sidebar filters
+            depot_df = df[df["depot"] == depot]
             wk_count = depot_df[depot_df["week_start"] == wk_dt]["name"].nunique()
-            # Add single day leave
             sdl_count = 0
             if not sdl.empty and "date" in sdl.columns:
                 sdl_day = sdl[pd.to_datetime(sdl["date"]).dt.date == day_date]
                 if "depot" in sdl_day.columns:
                     sdl_count = sdl_day[sdl_day["depot"] == depot]["name"].nunique()
-                else:
-                    sdl_count = 0
             total = wk_count + sdl_count
             y_vals.append(total)
             hover_vals.append(f"<b>{label}</b><br>{day_date.strftime('%a %d %b %Y')}<br>{total} on leave")
