@@ -99,7 +99,7 @@ with st.sidebar:
             seen_m.add(key)
 
     # ── Time period ──
-    period_type = st.radio("Time period", ["Monthly", "Weekly"], horizontal=True, label_visibility="collapsed")
+    period_type = st.radio("Time period", ["Monthly", "Weekly", "Daily"], horizontal=True, label_visibility="collapsed")
     st.caption("Time period")
 
     if period_type == "Monthly":
@@ -124,8 +124,7 @@ with st.sidebar:
             month_filter.append((last + pd.DateOffset(months=1)).strftime("%b %Y"))
         week_filter = None
         st.caption(f"📅 {month_filter[0]} → {month_filter[-1]}  (13 months)")
-    else:
-        # Default start = first week of data
+    elif period_type == "Weekly":
         default_week_start = week_labels[0]
         start_week = st.select_slider(
             "Start week",
@@ -138,7 +137,29 @@ with st.sidebar:
         month_filter = None
         end_label = week_filter[-1] if week_filter else "—"
         st.caption(f"📅 {start_week} → {end_label}  (52 weeks)")
-
+    else:
+        # Daily mode
+        from datetime import date as date_cls
+        _start = date_cls.today()
+        _start = _start - timedelta(days=_start.weekday())
+        all_working_days = []
+        _d = _start
+        while len(all_working_days) < 130:
+            if _d.weekday() < 5:
+                all_working_days.append(_d)
+            _d += timedelta(days=1)
+        day_labels = [d.strftime("%a %d %b %Y") for d in all_working_days]
+        day_map    = dict(zip(day_labels, all_working_days))
+        default_day = day_labels[0]
+        start_day = st.select_slider(
+            "Start day", options=day_labels, value=default_day,
+            label_visibility="collapsed",
+        )
+        i0 = day_labels.index(start_day)
+        day_filter   = day_labels[i0:i0 + 20]
+        week_filter  = None
+        month_filter = None
+        st.caption(f"📅 {day_filter[0][:10]} -> {day_filter[-1][:10]}  (20 working days)")
     st.divider()
 
     # ── Team / Area (formerly Depot) ──
@@ -245,6 +266,10 @@ with st.sidebar:
 sdl_df = load_single_day_leave()
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
+if period_type != "Daily":
+    day_filter = None
+    day_map    = {}
+    day_labels = []
 if df_all.empty:
     st.error("No data found. Please check the Excel file.")
     st.stop()
@@ -262,6 +287,8 @@ elif period_type == "Weekly" and week_filter:
     filtered_weeks      = [week_map[w] for w in week_filter if w in week_map]
     future_week_labels  = [w for w in week_filter if w not in data_week_labels]
     future_week_dates   = [week_map[w] for w in future_week_labels if w in week_map]
+elif period_type == "Daily":
+    filtered_weeks = all_weeks  # daily uses its own day_filter
 else:
     filtered_weeks = all_weeks
 
@@ -323,6 +350,77 @@ st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
 st.markdown("#### ⚠️ Concurrent leave — staffing load")
+
+if period_type == "Daily" and day_filter:
+    # ── Daily view chart ──────────────────────────────────────────────────────
+    from single_day_leave import load_single_day_leave
+    sdl = load_single_day_leave()
+
+    depot_color_map = {
+        "PDO":"#0077BB","Relief":"#EE7733","Night Shift":"#AA4499",
+        "Mid Shift":"#DDAA33","Admin":"#BB5522","Admin/Ops":"#BB5522",
+        "GPO":"#88BBDD","Management":"#CC3377",
+    }
+    all_depots_daily = sorted([
+        d for d in df_all["depot"].dropna().unique()
+        if str(d).strip() not in ("","4am Slotters")
+    ])
+
+    day_dates = [day_map[dl] for dl in day_filter if dl in day_map]
+    data_cutoff = datetime(2026, 12, 28).date()
+
+    fig_daily = go.Figure()
+    for depot in all_depots_daily:
+        label = "Admin" if depot == "Admin/Ops" else depot
+        color = depot_color_map.get(depot, "#BBBBBB")
+        y_vals, x_vals, hover_vals = [], [], []
+        for day_date in day_dates:
+            x_vals.append(day_date.strftime("%a %d %b"))
+            if day_date > data_cutoff:
+                y_vals.append(0)
+                hover_vals.append(f"<b>{day_date.strftime('%a %d %b %Y')}</b><br>📭 No data yet")
+                continue
+            # Count from leave_data (weekly — if week contains this day)
+            wk_start = day_date - timedelta(days=day_date.weekday())
+            wk_dt    = datetime.combine(wk_start, datetime.min.time())
+            depot_df = df_all[df_all["depot"] == depot]
+            wk_count = depot_df[depot_df["week_start"] == wk_dt]["name"].nunique()
+            # Add single day leave
+            sdl_count = 0
+            if not sdl.empty and "date" in sdl.columns:
+                sdl_day = sdl[pd.to_datetime(sdl["date"]).dt.date == day_date]
+                if "depot" in sdl_day.columns:
+                    sdl_count = sdl_day[sdl_day["depot"] == depot]["name"].nunique()
+                else:
+                    sdl_count = 0
+            total = wk_count + sdl_count
+            y_vals.append(total)
+            hover_vals.append(f"<b>{label}</b><br>{day_date.strftime('%a %d %b %Y')}<br>{total} on leave")
+
+        fig_daily.add_trace(go.Bar(
+            x=x_vals, y=y_vals, name=label,
+            marker_color=color,
+            hovertemplate="%{customdata}<extra></extra>",
+            customdata=hover_vals,
+        ))
+
+    fig_daily.add_hline(y=threshold, line_dash="dash", line_color="#E24B4A",
+                        line_width=1.5,
+                        annotation_text=f"Max concurrent ({threshold})",
+                        annotation_position="top right",
+                        annotation_font_color="#111111",
+                        annotation_bgcolor="rgba(255,255,255,0.8)")
+
+    fig_daily.update_layout(
+        barmode="stack", height=320,
+        margin=dict(l=0,r=0,t=10,b=10),
+        plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
+        yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    st.plotly_chart(fig_daily, use_container_width=True)
+    st.stop()  # Don't show the weekly/monthly chart below
 
 # Total staff counts for minimum thresholds
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
