@@ -836,13 +836,7 @@ with tab2:
 
         fig_conc = go.Figure()
 
-        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Motorbike"],
-                                   name="Motorbike", marker_color="#378ADD"))
-        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["EDV"],
-                                   name="EDV", marker_color="#1D9E75"))
-        fig_conc.add_trace(go.Bar(x=bkdn_df["x_label"], y=bkdn_df["Other/Both"],
-                                   name="Other/Both", marker_color="#888780"))
-
+        
         fig_conc.add_hline(y=threshold, line_dash="dash", line_color="#E24B4A",
                             line_width=1.5,
                             annotation_text=f"Max concurrent ({threshold})",
