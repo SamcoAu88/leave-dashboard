@@ -106,13 +106,15 @@ with st.sidebar:
             value=default_start,
             label_visibility="collapsed",
         )
-        # Always show 13 months from selected start
+        # Always show exactly 13 months from selected start
         i0 = all_months.index(start_month)
-        i_end = i0 + 13  # 13 months window
-        month_filter = all_months[i0:i_end]  # may be shorter if near end of data
-        week_filter  = None
-        end_label = month_filter[-1] if month_filter else "—"
-        st.caption(f"📅 {start_month} → {end_label}  (13 months)")
+        month_filter = all_months[i0:i0 + 13]
+        # Pad to 13 if not enough months in list (shouldn't happen with 14 extra)
+        while len(month_filter) < 13:
+            last = pd.to_datetime("01 " + month_filter[-1], dayfirst=True)
+            month_filter.append((last + pd.DateOffset(months=1)).strftime("%b %Y"))
+        week_filter = None
+        st.caption(f"📅 {month_filter[0]} → {month_filter[-1]}  (13 months)")
     else:
         week_filter  = st.select_slider(
             "Week range",
@@ -260,7 +262,10 @@ if type_filter:
     df = df[df["leave_type"].isin(type_filter)]
 
 filtered_names = name_filter if name_filter else all_names
-conc_df = concurrent_by_week(df, filtered_weeks)
+# Only pass weeks that exist in actual data to concurrent_by_week
+data_weeks = [wk for wk in filtered_weeks if wk <= pd.Timestamp("2026-12-28")]
+conc_df = concurrent_by_week(df, data_weeks) if data_weeks else pd.DataFrame(
+    columns=["week_start","iso_week","concurrent_count","staff_on_leave","month"])
 
 # ── Metrics ───────────────────────────────────────────────────────────────────
 total_leave_weeks = len(df)
