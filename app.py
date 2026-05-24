@@ -457,7 +457,7 @@ if True:
                 rows_cm.append({"x_label": m, "concurrent_count": 0,
                                  "staff_on_leave": [], "has_data": False})
         conc_display = pd.DataFrame(rows_cm)
-    else:
+    elif period_type == "Weekly" and week_filter:
         # Build full 52-week spine including future no-data weeks
         data_week_set = set(get_week_labels(all_weeks))
         rows_wk = []
@@ -478,6 +478,10 @@ if True:
                              "staff_on_leave": [],
                              "has_data": False})
         conc_display = pd.DataFrame(rows_wk) if rows_wk else pd.DataFrame(
+            columns=["x_label","concurrent_count","staff_on_leave","has_data"])
+    else:
+        # Daily mode — conc_display not used for main chart
+        conc_display = pd.DataFrame(
             columns=["x_label","concurrent_count","staff_on_leave","has_data"])
 
     month_boundaries = []
