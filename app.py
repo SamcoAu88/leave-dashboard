@@ -944,73 +944,24 @@ with tab2:
                 )
                 st.plotly_chart(fig_rt, use_container_width=True)
 
-        if not df_all.empty:
+        if not df.empty:
             with bc2:
-                st.markdown("#### Next two weeks — Leave by Team")
-                today = datetime.today().date()
-                # Find next Monday
-                days_to_mon = (7 - today.weekday()) % 7 or 7
-                next_mon = today + timedelta(days=days_to_mon - today.weekday() if today.weekday() != 0 else 0)
-                next_mon = today - timedelta(days=today.weekday())  # this Monday
-                two_weeks_days = [next_mon + timedelta(days=i) for i in range(14)
-                                  if (next_mon + timedelta(days=i)).weekday() < 5]  # Mon-Fri only
-
-                # All depots for team breakdown
-                depot_colors = {
-                    "PDO":        "#0077BB",
-                    "Relief":     "#EE7733",
-                    "Night Shift":"#AA4499",
-                    "Mid Shift":  "#DDAA33",
-                    "Admin":      "#BB5522",
-                    "Admin/Ops":  "#BB5522",
-                    "GPO":        "#88BBDD",
-                    "Management": "#CC3377",
-                }
-
-                # For each day, check which weeks overlap and count per depot
-                # leave data is weekly — a person on leave that week = on leave Mon-Fri
-                fig_next = go.Figure()
-                depots_in_data = sorted(df_all["depot"].dropna().unique())
-
-                for depot in sorted(depots_in_data, key=lambda x: str(x).strip(), reverse=True):
-                    if not depot or str(depot).strip() in ("", "4am Slotters"):
-                        continue
-                    depot_label = "Admin" if depot == "Admin/Ops" else depot
-                    depot_df = df_all[df_all["depot"] == depot]
-                    day_counts = []
-                    for day in two_weeks_days:
-                        # Find the Monday of this day's week
-                        wk_start = day - timedelta(days=day.weekday())
-                        wk_start_dt = datetime.combine(wk_start, datetime.min.time())
-                        on_leave = depot_df[depot_df["week_start"] == wk_start_dt]["name"].nunique()
-                        day_counts.append(on_leave)
-
-                    color = depot_colors.get(depot, "#BBBBBB")
-                    fig_next.add_trace(go.Bar(
-                        x=[d.strftime("%a %d %b") for d in two_weeks_days],
-                        y=day_counts,
-                        name=depot_label,
-                        marker_color=color,
-                        hovertemplate=f"<b>{depot_label}</b><br>%{{x}}<br>%{{y}} on leave<extra></extra>",
-                    ))
-
-                fig_next.add_hline(
-                    y=threshold, line_dash="dash", line_color="#E24B4A", line_width=1.5,
-                    annotation_text=f"Threshold ({threshold})",
-                    annotation_position="top right", annotation_font_color="#E24B4A",
+                st.markdown("#### Leave type breakdown")
+                type_df2 = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
+                fig_pie2 = px.pie(type_df2, values="count", names="leave_type",
+                             color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
+                fig_pie2.update_traces(
+                    textposition="inside", textinfo="percent+label",
+                    insidetextfont=dict(size=10),
+                    texttemplate="%{label}<br>%{percent}",
                 )
-                fig_next.update_layout(
-                    barmode="stack",
+                fig_pie2.update_layout(
                     height=350,
-                    margin=dict(l=0, r=0, t=30, b=10),
-                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(tickangle=-45, tickfont=dict(size=10), showgrid=False),
-                    yaxis=dict(title="Staff on leave", gridcolor="#f0f0f0", zeroline=False),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                                xanchor="right", x=1, font=dict(size=10),
-                                ),
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    showlegend=False,
                 )
-                st.plotly_chart(fig_next, use_container_width=True)
+                st.plotly_chart(fig_pie2, use_container_width=True)
 
     st.markdown("#### Concurrent leave over time — by team")
     if not conc_df.empty and not df.empty:
@@ -1080,10 +1031,8 @@ with tab2:
         st.plotly_chart(fig_conc, use_container_width=True)
 
 
-    # Bottom row (bar + pie) — defined first so Python knows the vars
-    col_l, col_r = st.columns(2)
-
-    with col_l:
+    # Bottom row — full width bar chart
+    with st.container():
         if period_type == "Monthly":
             st.markdown("#### Staff on leave by month")
             if not df.empty:
@@ -1198,24 +1147,7 @@ with tab2:
                                   xaxis_tickangle=-60)
                 st.plotly_chart(fig, use_container_width=True)
 
-    with col_r:
-        st.markdown("#### Leave type breakdown")
-        if not df.empty:
-            type_df = df.groupby("leave_type").size().reset_index(name="count").sort_values("count", ascending=False)
-            fig = px.pie(type_df, values="count", names="leave_type",
-                         color="leave_type", color_discrete_map=LEAVE_COLORS, hole=0.45)
-            fig.update_traces(
-                textposition="inside", textinfo="percent+label",
-                insidetextfont=dict(size=10),
-                texttemplate="%{label}<br>%{percent}",
-            )
-            fig.update_layout(
-                height=350,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                showlegend=False,
-            )
-            st.plotly_chart(fig, use_container_width=True)
+
 
 # ── Tab 3: By staff ───────────────────────────────────────────────────────────
 with tab3:
