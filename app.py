@@ -7,11 +7,7 @@ import os
 import tempfile
 
 from single_day_leave import load_single_day_leave, render_entry_form
-try:
-    from streamlit_plotly_events import plotly_events
-    HAS_PLOTLY_EVENTS = True
-except ImportError:
-    HAS_PLOTLY_EVENTS = False
+
 from data_parser import (
     parse_excel, build_leave_df, get_all_weeks, get_week_labels,
     concurrent_by_week, LEAVE_COLORS, QLD_PUBLIC_HOLIDAYS_2026
