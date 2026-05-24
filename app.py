@@ -291,7 +291,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️  Staff on leave")
+st.markdown("#### ⚠️ Staff on leave")
 
 # Total staff counts for minimum thresholds
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
@@ -375,49 +375,42 @@ if not conc_df.empty:
 
     hover_texts = []
     for _, row in conc_display.iterrows():
-        wk     = row["week_start"]
-        wk_df_h = df[df["week_start"] == wk]
+        total   = row["concurrent_count"]
+        x_label = row["x_label"]
 
-        # Full week vs partial
-        full_wk  = wk_df_h[wk_df_h["leave_type"] == "Annual Leave"]
-        partial  = wk_df_h[wk_df_h["leave_type"] == "Annual Leave (partial week)"]
-        n_full   = len(full_wk)
-        n_partial= len(partial)
+        if period_type == "Monthly":
+            # Monthly hover — simpler summary
+            h = (f"<b>{x_label}</b><br>"
+                 f"<b>Peak: {total} staff on leave</b>")
+        else:
+            wk      = row["week_start"]
+            wk_df_h = df[df["week_start"] == wk]
+            full_wk = wk_df_h[wk_df_h["leave_type"] == "Annual Leave"]
+            partial = wk_df_h[wk_df_h["leave_type"] == "Annual Leave (partial week)"]
+            n_full, n_partial = len(full_wk), len(partial)
+            days_lost = n_full*5 + n_partial*3 + len(wk_df_h[~wk_df_h["leave_type"].isin(
+                ["Annual Leave","Annual Leave (partial week)"])])*5
+            mb_leave  = wk_vehicle_counts.get(wk, {}).get("Motorbike", 0)
+            edv_leave = wk_vehicle_counts.get(wk, {}).get("EDV", 0)
+            rel_leave = wk_relief_counts.get(wk, 0)
+            mb_avail  = total_motorbike - mb_leave
+            edv_avail = total_edv       - edv_leave
+            rel_avail = total_relief    - rel_leave
 
-        # Days lost — for partials use raw_value if available, else estimate
-        days_full    = n_full * 5
-        # Estimate partial days from leave_type label (we don't store raw here, use 3 as avg)
-        days_partial = n_partial * 3
-        days_other   = len(wk_df_h[~wk_df_h["leave_type"].isin(
-                            ["Annual Leave","Annual Leave (partial week)"])]) * 5
-        days_lost    = days_full + days_partial + days_other
+            def avail_line(avail, minimum, label):
+                if minimum == 0: return ""
+                icon = "✅" if avail >= minimum else "🔴"
+                return f"<br>{icon} {label}: {avail} available (min {minimum})"
 
-        total = row["concurrent_count"]
-
-        # Vehicle / relief availability
-        mb_leave  = wk_vehicle_counts.get(wk, {}).get("Motorbike", 0)
-        edv_leave = wk_vehicle_counts.get(wk, {}).get("EDV", 0)
-        rel_leave = wk_relief_counts.get(wk, 0)
-        mb_avail  = total_motorbike - mb_leave
-        edv_avail = total_edv       - edv_leave
-        rel_avail = total_relief    - rel_leave
-
-        def avail_line(avail, minimum, label):
-            if minimum == 0: return ""
-            icon = "✅" if avail >= minimum else "🔴"
-            return f"<br>{icon} {label}: {avail} available (min {minimum})"
-
-        # Partial detail
-        partial_detail = f" ({days_partial} days)" if n_partial > 0 else ""
-
-        h = (
-            f"<b>{row['iso_week']}  —  {wk.strftime('%d %b %Y')}</b><br>"
-            f"<b>{total} on leave</b>  ({n_full} full week  +  {n_partial} partial{partial_detail})<br>"
-            f"≈ {days_lost} working days lost"
-            + avail_line(mb_avail, min_motorbike, "Motorbike")
-            + avail_line(edv_avail, min_edv,       "EDV")
-            + avail_line(rel_avail, min_relief,    "Relief")
-        )
+            partial_detail = f" ({n_partial*3} days)" if n_partial > 0 else ""
+            h = (
+                f"<b>{wk.strftime('%d %b %Y')}</b><br>"
+                f"<b>{total} on leave</b>  ({n_full} full week + {n_partial} partial{partial_detail})<br>"
+                f"≈ {days_lost} working days lost"
+                + avail_line(mb_avail, min_motorbike, "Motorbike")
+                + avail_line(edv_avail, min_edv, "EDV")
+                + avail_line(rel_avail, min_relief, "Relief")
+            )
         hover_texts.append(h)
 
     fig_load = go.Figure()
