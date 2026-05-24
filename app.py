@@ -296,15 +296,31 @@ elif period_type == "Daily":
 else:
     filtered_weeks = all_weeks
 
-if depot_filter:
+# Apply filters — only filter when something is explicitly selected
+# depot_filter = list of original depot values matching selected clean names
+if depot_filter is not None and len(depot_filter) < len(df_all["depot"].dropna().unique()):
     df = df[df["depot"].isin(depot_filter)]
-if route_team_filter:
-    df = df[df["route_team"].isin(route_team_filter)]
-if vehicle_filter:
-    df = df[df["vehicle_type"].isin(vehicle_filter)]
-if name_filter:
+
+# Route team — only apply if has_route and some teams unchecked
+if route_team_filter is not None and has_route:
+    if len(route_team_filter) > 0:
+        # Also include rows with no route team (blank) unless specifically filtered
+        all_rt = set(df_all["route_team"].dropna().unique())
+        filtered_rt = set(route_team_filter)
+        if filtered_rt != all_rt:
+            df = df[df["route_team"].isin(route_team_filter)]
+
+# Vehicle filter
+if vehicle_filter is not None and has_vehicle:
+    if vehicle_filter:
+        df = df[df["vehicle_type"].isin(vehicle_filter)]
+
+# Name filter
+if name_filter and len(name_filter) < len(all_names):
     df = df[df["name"].isin(name_filter)]
-if type_filter:
+
+# Leave type filter
+if type_filter and len(type_filter) < len(all_types):
     df = df[df["leave_type"].isin(type_filter)]
 
 filtered_names = name_filter if name_filter else all_names
@@ -1033,7 +1049,34 @@ with tab2:
 
     # Bottom row — full width bar chart
     with st.container():
-        if period_type == "Monthly":
+        if period_type == "Daily":
+            st.markdown("#### Staff on leave by day")
+            if not df.empty and day_filter:
+                day_dates = [day_map[dl] for dl in day_filter if dl in day_map]
+                today_dt  = pd.Timestamp.today().normalize()
+                day_counts, day_colors, day_hover, day_labels_x = [], [], [], []
+                for dd in day_dates:
+                    wk_start = dd - timedelta(days=dd.weekday())
+                    wk_dt    = datetime.combine(wk_start, datetime.min.time())
+                    count    = df[df["week_start"] == wk_dt]["name"].nunique()
+                    is_fut   = pd.Timestamp(dd) > today_dt
+                    day_labels_x.append(dd.strftime("%a %d %b"))
+                    day_counts.append(count if not is_fut else 0)
+                    day_colors.append("rgba(180,180,180,0.25)" if is_fut
+                                      else "#0077BB" if count > 0 else "#e0e0e0")
+                    day_hover.append(f"<b>{dd.strftime('%a %d %b %Y')}</b><br>{'📭 No data yet' if is_fut else f'{count} staff on leave'}")
+                fig_d = go.Figure(go.Bar(
+                    x=day_labels_x, y=day_counts,
+                    marker_color=day_colors,
+                    hovertemplate="%{customdata}<extra></extra>",
+                    customdata=day_hover,
+                ))
+                fig_d.update_layout(margin=dict(l=0,r=0,t=10,b=10),
+                                    yaxis_title="Unique staff on leave",
+                                    plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                                    xaxis_tickangle=-45)
+                st.plotly_chart(fig_d, use_container_width=True)
+        elif period_type == "Monthly":
             st.markdown("#### Staff on leave by month")
             if not df.empty:
                 # Build a full 13-month spine including future months
@@ -1113,7 +1156,7 @@ with tab2:
                     barmode="overlay",
                 )
                 st.plotly_chart(fig, use_container_width=True)
-        else:
+        elif period_type == "Weekly":
             st.markdown("#### Staff on leave by week")
             if not df.empty:
                 wk_df = (df.groupby("iso_week")
