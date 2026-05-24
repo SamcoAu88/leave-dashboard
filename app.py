@@ -469,7 +469,7 @@ else:
 
 if drill_options:
     selected = st.selectbox("Select period", ["— tap to select —"] + drill_options,
-                            label_visibility="collapsed", key="drill_select")
+                            label_visibility="collapsed", key="drill_daily")
 
     if selected and selected != "— tap to select —":
         if period_type == "Monthly":
@@ -797,7 +797,7 @@ else:
 
 if drill_options:
     selected = st.selectbox("Select period", ["— tap to select —"] + drill_options,
-                            label_visibility="collapsed", key="drill_select")
+                            label_visibility="collapsed", key="drill_main")
 
     if selected and selected != "— tap to select —":
         if period_type == "Monthly":
