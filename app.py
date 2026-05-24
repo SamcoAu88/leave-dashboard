@@ -447,34 +447,44 @@ if True:
                 h = (f"<b>{x_label}</b><br>"
                      f"<b>Peak: {total} staff on leave</b>")
         else:
-            wk      = row["week_start"]
-            wk_df_h = df[df["week_start"] == wk]
-            full_wk = wk_df_h[wk_df_h["leave_type"] == "Annual Leave"]
-            partial = wk_df_h[wk_df_h["leave_type"] == "Annual Leave (partial week)"]
-            n_full, n_partial = len(full_wk), len(partial)
-            days_lost = n_full*5 + n_partial*3 + len(wk_df_h[~wk_df_h["leave_type"].isin(
-                ["Annual Leave","Annual Leave (partial week)"])])*5
-            mb_leave  = wk_vehicle_counts.get(wk, {}).get("Motorbike", 0)
-            edv_leave = wk_vehicle_counts.get(wk, {}).get("EDV", 0)
-            rel_leave = wk_relief_counts.get(wk, 0)
-            mb_avail  = total_motorbike - mb_leave
-            edv_avail = total_edv       - edv_leave
-            rel_avail = total_relief    - rel_leave
+            has_data = row.get("has_data", True)
+            if not has_data:
+                h = f"<b>{x_label}</b><br>📭 No data available yet"
+            else:
+                # Look up week_start from week_map using x_label
+                wk = next((week_map[wl] for wl in week_filter
+                           if week_map.get(wl) is not None
+                           and week_map[wl].strftime("%d %b") == x_label), None)
+                if wk is None:
+                    h = f"<b>{x_label}</b><br>{total} on leave"
+                else:
+                    wk_df_h = df[df["week_start"] == wk]
+                    full_wk = wk_df_h[wk_df_h["leave_type"] == "Annual Leave"]
+                    partial = wk_df_h[wk_df_h["leave_type"] == "Annual Leave (partial week)"]
+                    n_full, n_partial = len(full_wk), len(partial)
+                    days_lost = n_full*5 + n_partial*3 + len(wk_df_h[~wk_df_h["leave_type"].isin(
+                        ["Annual Leave","Annual Leave (partial week)"])])*5
+                    mb_leave  = wk_vehicle_counts.get(wk, {}).get("Motorbike", 0)
+                    edv_leave = wk_vehicle_counts.get(wk, {}).get("EDV", 0)
+                    rel_leave = wk_relief_counts.get(wk, 0)
+                    mb_avail  = total_motorbike - mb_leave
+                    edv_avail = total_edv       - edv_leave
+                    rel_avail = total_relief    - rel_leave
 
-            def avail_line(avail, minimum, label):
-                if minimum == 0: return ""
-                icon = "✅" if avail >= minimum else "🔴"
-                return f"<br>{icon} {label}: {avail} available (min {minimum})"
+                    def avail_line(avail, minimum, label):
+                        if minimum == 0: return ""
+                        icon = "✅" if avail >= minimum else "🔴"
+                        return f"<br>{icon} {label}: {avail} available (min {minimum})"
 
-            partial_detail = f" ({n_partial*3} days)" if n_partial > 0 else ""
-            h = (
-                f"<b>{wk.strftime('%d %b %Y')}</b><br>"
-                f"<b>{total} on leave</b>  ({n_full} full week + {n_partial} partial{partial_detail})<br>"
-                f"≈ {days_lost} working days lost"
-                + avail_line(mb_avail, min_motorbike, "Motorbike")
-                + avail_line(edv_avail, min_edv, "EDV")
-                + avail_line(rel_avail, min_relief, "Relief")
-            )
+                    partial_detail = f" ({n_partial*3} days)" if n_partial > 0 else ""
+                    h = (
+                        f"<b>{wk.strftime('%d %b %Y')}</b><br>"
+                        f"<b>{total} on leave</b>  ({n_full} full week + {n_partial} partial{partial_detail})<br>"
+                        f"≈ {days_lost} working days lost"
+                        + avail_line(mb_avail, min_motorbike, "Motorbike")
+                        + avail_line(edv_avail, min_edv, "EDV")
+                        + avail_line(rel_avail, min_relief, "Relief")
+                    )
         hover_texts.append(h)
 
     fig_load = go.Figure()
