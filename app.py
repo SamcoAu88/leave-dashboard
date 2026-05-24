@@ -431,7 +431,7 @@ total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()     
 total_relief    = df_all[df_all["depot"] == "Relief"]["name"].nunique()             if not df_all.empty else 0
 
 # Always build conc_display — even if conc_df is empty (future months)
-if True:
+if period_type != "Daily":
     # For monthly view: group concurrent counts by month
     # For weekly view: keep weekly granularity
     if period_type == "Monthly":
