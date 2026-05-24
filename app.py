@@ -7,6 +7,11 @@ import os
 import tempfile
 
 from single_day_leave import load_single_day_leave, render_entry_form
+try:
+    from streamlit_plotly_events import plotly_events
+    HAS_PLOTLY_EVENTS = True
+except ImportError:
+    HAS_PLOTLY_EVENTS = False
 from data_parser import (
     parse_excel, build_leave_df, get_all_weeks, get_week_labels,
     concurrent_by_week, LEAVE_COLORS, QLD_PUBLIC_HOLIDAYS_2026
@@ -363,6 +368,12 @@ else:
     st.title("Annual Leave Dashboard")
     st.caption(f"Brisbane Central — Stafford DC &nbsp;|&nbsp; 2025/2026 &nbsp;|&nbsp; {datetime.today().strftime('%d %b %Y')}")
 
+# Session state for clickable chart selection
+if "selected_period" not in st.session_state:
+    st.session_state.selected_period = None
+if "selected_period_type" not in st.session_state:
+    st.session_state.selected_period_type = None
+
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1: st.metric("Staff tracked",     len(filtered_names))
 with c2: st.metric("Total leave weeks", total_leave_weeks)
@@ -373,7 +384,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️ Staff on leave")
+st.markdown("#### ⚠️ Concurrent leave — staffing load")
 
 if period_type == "Daily" and day_filter:
     # ── Daily view chart ──────────────────────────────────────────────────────
