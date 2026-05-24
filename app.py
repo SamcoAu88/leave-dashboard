@@ -380,7 +380,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️ Concurrent leave — staffing load")
+st.markdown("#### Staff on leave")
 
 if period_type == "Daily" and day_filter:
     # ── Daily view chart ──────────────────────────────────────────────────────
