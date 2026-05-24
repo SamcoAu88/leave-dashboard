@@ -138,23 +138,27 @@ with st.sidebar:
         end_label = week_filter[-1] if week_filter else "—"
         st.caption(f"📅 {start_week} → {end_label}  (52 weeks)")
     else:
-        # Daily mode — go back 3 months and forward 6 months
+        # Daily mode — go back 12 months and forward 12 months
         from datetime import date as date_cls
         today_d = date_cls.today()
-        _start = today_d - timedelta(days=today_d.weekday())  # this Monday
-        _start = _start - timedelta(weeks=13)  # go back ~3 months
+        _start = today_d - timedelta(weeks=52)  # 12 months back
+        _start = _start - timedelta(days=_start.weekday())  # align to Monday
         all_working_days = []
         _d = _start
-        while len(all_working_days) < 260:  # ~12 months of working days
+        while len(all_working_days) < 520:  # ~24 months of working days
             if _d.weekday() < 5:
                 all_working_days.append(_d)
             _d += timedelta(days=1)
         day_labels = [d.strftime("%a %d %b %Y") for d in all_working_days]
         day_map    = dict(zip(day_labels, all_working_days))
-        # Default = today's Monday
-        default_day = today_d.strftime("%a %d %b %Y")
-        if default_day not in day_labels:
-            default_day = day_labels[13*5]  # approx 3 months in
+        # Default = today (or nearest working day)
+        default_day = None
+        for dl in day_labels:
+            if day_map[dl] >= today_d:
+                default_day = dl
+                break
+        if not default_day:
+            default_day = day_labels[0]
         start_day = st.select_slider(
             "Start day", options=day_labels, value=default_day,
             label_visibility="collapsed",
@@ -163,7 +167,7 @@ with st.sidebar:
         day_filter   = day_labels[i0:i0 + 20]
         week_filter  = None
         month_filter = None
-        st.caption(f"📅 {day_filter[0][:10]} -> {day_filter[-1][:10]}  (20 working days)")
+        st.caption(f"📅 {day_filter[0][:10]} → {day_filter[-1][:10]}  (20 working days)")
     st.divider()
 
     # ── Team / Area (formerly Depot) ──
