@@ -449,6 +449,74 @@ if period_type == "Daily" and day_filter:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     st.plotly_chart(fig_daily, use_container_width=True)
+
+# ── 🔍 Drill-down: who's on leave ──────────────────────────────────────────────
+st.markdown("#### 🔍 Who's on leave — select a period to drill down")
+
+if period_type == "Monthly" and month_filter:
+    drill_options = month_filter
+elif period_type == "Weekly" and week_filter:
+    drill_options = []
+    for wlbl in week_filter:
+        wk_dt = week_map.get(wlbl)
+        if wk_dt:
+            drill_options.append(wk_dt.strftime("%d %b %Y"))
+elif period_type == "Daily" and day_filter:
+    drill_options = [day_map[dl].strftime("%a %d %b %Y")
+                     for dl in day_filter if dl in day_map]
+else:
+    drill_options = []
+
+if drill_options:
+    selected = st.selectbox("Select period", ["— tap to select —"] + drill_options,
+                            label_visibility="collapsed", key="drill_select")
+
+    if selected and selected != "— tap to select —":
+        if period_type == "Monthly":
+            detail_df = df[df["month"] == selected].copy()
+            title_lbl = selected
+        elif period_type == "Weekly":
+            sel_dt = pd.to_datetime(selected, dayfirst=True)
+            detail_df = df[df["week_start"] == sel_dt].copy()
+            title_lbl = selected
+        elif period_type == "Daily":
+            sel_date = pd.to_datetime(selected, dayfirst=True).date()
+            wk_start = sel_date - timedelta(days=sel_date.weekday())
+            wk_dt_d  = datetime.combine(wk_start, datetime.min.time())
+            detail_df = df[df["week_start"] == wk_dt_d].copy()
+            title_lbl = selected
+        else:
+            detail_df = pd.DataFrame()
+            title_lbl = selected
+
+        if not detail_df.empty:
+            show_cols = ["name","depot","route_team","vehicle_type","leave_type","week_start"]
+            show_cols = [c for c in show_cols if c in detail_df.columns]
+            disp = detail_df[show_cols].drop_duplicates("name").sort_values("name").copy()
+            disp["week_start"] = disp["week_start"].dt.strftime("%d %b %Y")
+            disp.columns = [c.replace("_"," ").title() for c in disp.columns]
+            st.markdown(f"**{len(disp)} staff on leave — {title_lbl}**")
+            st.dataframe(disp, use_container_width=True, hide_index=True)
+
+        # Single day leave from Google Sheets (daily mode only)
+        if period_type == "Daily":
+            try:
+                from single_day_leave import load_single_day_leave
+                sdl2 = load_single_day_leave()
+                if not sdl2.empty and "date" in sdl2.columns:
+                    sdl2_day = sdl2[pd.to_datetime(sdl2["date"]).dt.date == sel_date]
+                    if not sdl2_day.empty:
+                        st.markdown(f"**Single day leave entries — {title_lbl}:**")
+                        sdl2_disp = sdl2_day.copy()
+                        sdl2_disp.columns = [c.replace("_"," ").title() for c in sdl2_disp.columns]
+                        st.dataframe(sdl2_disp, use_container_width=True, hide_index=True)
+            except:
+                pass
+
+        if detail_df.empty and period_type != "Daily":
+            st.info("No leave data for this period.")
+
+
 # Total staff counts for minimum thresholds (used in weekly/monthly chart)
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
 total_motorbike = df_all[df_all["vehicle_type"] == "Motorbike"]["name"].nunique() if not df_all.empty else 0
@@ -709,6 +777,73 @@ if period_type != "Daily":
     with leg_l:  st.markdown('<span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#E24B4A;margin-right:4px"></span><small>Critical / below minimum</small>', unsafe_allow_html=True)
 
     st.plotly_chart(fig_load, use_container_width=True)
+
+# ── 🔍 Drill-down: who's on leave ──────────────────────────────────────────────
+st.markdown("#### 🔍 Who's on leave — select a period to drill down")
+
+if period_type == "Monthly" and month_filter:
+    drill_options = month_filter
+elif period_type == "Weekly" and week_filter:
+    drill_options = []
+    for wlbl in week_filter:
+        wk_dt = week_map.get(wlbl)
+        if wk_dt:
+            drill_options.append(wk_dt.strftime("%d %b %Y"))
+elif period_type == "Daily" and day_filter:
+    drill_options = [day_map[dl].strftime("%a %d %b %Y")
+                     for dl in day_filter if dl in day_map]
+else:
+    drill_options = []
+
+if drill_options:
+    selected = st.selectbox("Select period", ["— tap to select —"] + drill_options,
+                            label_visibility="collapsed", key="drill_select")
+
+    if selected and selected != "— tap to select —":
+        if period_type == "Monthly":
+            detail_df = df[df["month"] == selected].copy()
+            title_lbl = selected
+        elif period_type == "Weekly":
+            sel_dt = pd.to_datetime(selected, dayfirst=True)
+            detail_df = df[df["week_start"] == sel_dt].copy()
+            title_lbl = selected
+        elif period_type == "Daily":
+            sel_date = pd.to_datetime(selected, dayfirst=True).date()
+            wk_start = sel_date - timedelta(days=sel_date.weekday())
+            wk_dt_d  = datetime.combine(wk_start, datetime.min.time())
+            detail_df = df[df["week_start"] == wk_dt_d].copy()
+            title_lbl = selected
+        else:
+            detail_df = pd.DataFrame()
+            title_lbl = selected
+
+        if not detail_df.empty:
+            show_cols = ["name","depot","route_team","vehicle_type","leave_type","week_start"]
+            show_cols = [c for c in show_cols if c in detail_df.columns]
+            disp = detail_df[show_cols].drop_duplicates("name").sort_values("name").copy()
+            disp["week_start"] = disp["week_start"].dt.strftime("%d %b %Y")
+            disp.columns = [c.replace("_"," ").title() for c in disp.columns]
+            st.markdown(f"**{len(disp)} staff on leave — {title_lbl}**")
+            st.dataframe(disp, use_container_width=True, hide_index=True)
+
+        # Single day leave from Google Sheets (daily mode only)
+        if period_type == "Daily":
+            try:
+                from single_day_leave import load_single_day_leave
+                sdl2 = load_single_day_leave()
+                if not sdl2.empty and "date" in sdl2.columns:
+                    sdl2_day = sdl2[pd.to_datetime(sdl2["date"]).dt.date == sel_date]
+                    if not sdl2_day.empty:
+                        st.markdown(f"**Single day leave entries — {title_lbl}:**")
+                        sdl2_disp = sdl2_day.copy()
+                        sdl2_disp.columns = [c.replace("_"," ").title() for c in sdl2_disp.columns]
+                        st.dataframe(sdl2_disp, use_container_width=True, hide_index=True)
+            except:
+                pass
+
+        if detail_df.empty and period_type != "Daily":
+            st.info("No leave data for this period.")
+
 
     # Who's off table — only alert weeks
     if not alert_weeks_df.empty:
