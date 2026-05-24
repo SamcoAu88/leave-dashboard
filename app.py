@@ -212,9 +212,9 @@ with st.sidebar:
     threshold = st.slider("Max concurrent on leave", 1, 30, 15)
     st.caption("📊 Minimum staff on duty")
     st.caption("Slide to set minimum number of staff required on duty.")
-    min_motorbike = st.slider("🏍️ Motorbike", 0, 40, 25)
-    min_edv       = st.slider("🚐 EDV",        0, 40, 25)
-    min_relief    = st.slider("👤 Relief",      0, 40, 15)
+    min_motorbike = st.slider("🏍️ Motorbike", 0, 30, 25)
+    min_edv       = st.slider("🚐 EDV",        0, 30, 25)
+    min_relief    = st.slider("👤 Relief",      0, 20, 15)
 
 
 # ── Load single day leave from Google Sheets ─────────────────────────────────
@@ -291,7 +291,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️ Staff on leave")
+st.markdown("#### ⚠️  Staff on leave")
 
 # Total staff counts for minimum thresholds
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
@@ -300,20 +300,26 @@ total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()     
 total_relief    = df_all[df_all["depot"] == "Relief"]["name"].nunique()             if not df_all.empty else 0
 
 if not conc_df.empty:
-    # X-axis labels: always show week start date, but monthly view groups by month
-    # Monthly: "09 Feb" per week, with month name shown via ticktext
-    # Weekly:  "09 Feb" per week
-    conc_df["x_label"] = conc_df["week_start"].apply(lambda wk: wk.strftime("%d %b"))
-
-    # For monthly view, build month boundary annotations
-    month_boundaries = []
+    # For monthly view: group concurrent counts by month (avg per week in that month)
+    # For weekly view: keep weekly granularity
     if period_type == "Monthly":
-        prev_month = None
-        for _, row in conc_df.iterrows():
-            m = row["week_start"].strftime("%b %Y")
-            if m != prev_month:
-                month_boundaries.append((row["x_label"], m))
-                prev_month = m
+        conc_df["month_label"] = conc_df["week_start"].apply(lambda w: w.strftime("%b %Y"))
+        conc_monthly = (conc_df.groupby("month_label")
+                               .agg(concurrent_count=("concurrent_count","max"),
+                                    staff_on_leave=("staff_on_leave", lambda x: sorted(set(
+                                        [name for sublist in x for name in sublist]))))
+                               .reset_index())
+        # Sort by actual month order
+        month_order = {m: i for i, m in enumerate(all_months)}
+        conc_monthly["sort"] = conc_monthly["month_label"].map(month_order)
+        conc_monthly = conc_monthly.sort_values("sort").reset_index(drop=True)
+        conc_monthly["x_label"] = conc_monthly["month_label"]
+        conc_display = conc_monthly
+    else:
+        conc_df["x_label"] = conc_df["week_start"].apply(lambda wk: wk.strftime("%d %b"))
+        conc_display = conc_df
+
+    month_boundaries = []
 
     # Per-week breakdown: how many motorbike/edv/relief are on leave each week
     wk_vehicle_counts = {}
@@ -368,7 +374,7 @@ if not conc_df.empty:
         return total
 
     hover_texts = []
-    for _, row in conc_df.iterrows():
+    for _, row in conc_display.iterrows():
         wk     = row["week_start"]
         wk_df_h = df[df["week_start"] == wk]
 
@@ -416,8 +422,8 @@ if not conc_df.empty:
 
     fig_load = go.Figure()
     fig_load.add_trace(go.Bar(
-        x=conc_df["x_label"],
-        y=conc_df["concurrent_count"],
+        x=conc_display["x_label"],
+        y=conc_display["concurrent_count"],
         marker_color=bar_colors,
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_texts,
