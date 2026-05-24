@@ -138,19 +138,23 @@ with st.sidebar:
         end_label = week_filter[-1] if week_filter else "—"
         st.caption(f"📅 {start_week} → {end_label}  (52 weeks)")
     else:
-        # Daily mode
+        # Daily mode — go back 3 months and forward 6 months
         from datetime import date as date_cls
-        _start = date_cls.today()
-        _start = _start - timedelta(days=_start.weekday())
+        today_d = date_cls.today()
+        _start = today_d - timedelta(days=today_d.weekday())  # this Monday
+        _start = _start - timedelta(weeks=13)  # go back ~3 months
         all_working_days = []
         _d = _start
-        while len(all_working_days) < 130:
+        while len(all_working_days) < 260:  # ~12 months of working days
             if _d.weekday() < 5:
                 all_working_days.append(_d)
             _d += timedelta(days=1)
         day_labels = [d.strftime("%a %d %b %Y") for d in all_working_days]
         day_map    = dict(zip(day_labels, all_working_days))
-        default_day = day_labels[0]
+        # Default = today's Monday
+        default_day = today_d.strftime("%a %d %b %Y")
+        if default_day not in day_labels:
+            default_day = day_labels[13*5]  # approx 3 months in
         start_day = st.select_slider(
             "Start day", options=day_labels, value=default_day,
             label_visibility="collapsed",
@@ -420,9 +424,7 @@ if period_type == "Daily" and day_filter:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     st.plotly_chart(fig_daily, use_container_width=True)
-    st.stop()  # Don't show the weekly/monthly chart below
-
-# Total staff counts for minimum thresholds
+# Total staff counts for minimum thresholds (used in weekly/monthly chart)
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
 total_motorbike = df_all[df_all["vehicle_type"] == "Motorbike"]["name"].nunique() if not df_all.empty else 0
 total_edv       = df_all[df_all["vehicle_type"] == "EDV"]["name"].nunique()        if not df_all.empty else 0
