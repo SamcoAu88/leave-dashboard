@@ -78,6 +78,17 @@ with st.sidebar:
             all_months.append(key)
             seen_m.add(key)
 
+    # Extend all_months to cover 13 months beyond the last data month
+    # so slider can reach into the future
+    last_data_dt = pd.to_datetime("01 " + all_months[-1], dayfirst=True)
+    extra_dt = last_data_dt
+    for _ in range(14):
+        extra_dt = extra_dt + pd.DateOffset(months=1)
+        key = extra_dt.strftime("%b %Y")
+        if key not in seen_m:
+            all_months.append(key)
+            seen_m.add(key)
+
     # ── Time period ──
     period_type = st.radio("Time period", ["Monthly", "Weekly"], horizontal=True, label_visibility="collapsed")
     st.caption("Time period")
@@ -291,7 +302,7 @@ with c5: st.metric("High-risk weeks",   len(alert_weeks_df), delta="above thresh
 st.divider()
 
 # ── Staffing load chart + who's off table ─────────────────────────────────────
-st.markdown("#### ⚠️  Staff on leave")
+st.markdown("#### ⚠️ Concurrent leave — staffing load")
 
 # Total staff counts for minimum thresholds
 total_motorbike = int((df_all["vehicle_type"] == "Motorbike").sum() / max(df_all["name"].nunique(), 1) * df_all["name"].nunique()) if not df_all.empty else 0
